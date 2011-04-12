@@ -1,148 +1,135 @@
-from collections import defaultdict
+
+
+#------------------------------------------------------------------------------
+# Builtin types
+#------------------------------------------------------------------------------
+
+# This dict is populated by the CTypeMeta class
+C_TYPES = {}
+
+
+class CTypeMeta(type):
+
+    def __new__(meta, cls_name, bases, cls_dict):
+        cls = type.__new__(meta, cls_name, bases, cls_dict)
+        C_TYPES[cls.c_name] = cls
+        return cls
+
+
+class CType(object):
+    
+    __metaclass__ = CTypeMeta
+
+    c_name = ''
+    
+    @classmethod
+    def cast(cls):
+        return '<%s>' % self.c_name
+
+    @classmethod
+    def object_var_to_c(cls, name):
+        return self.cast() + name
+
+    @classmethod
+    def c_var_to_object(cls, name):
+        return '<object>' + name
+
+   
+class Void(CType):
+    c_name = 'void'
+    
+
+class Int(CType):
+    c_name = 'int'
+
+
+class UInt(CType):
+    c_name = 'unsigned int'
+
+
+class Short(CType):
+    c_name = 'short'
+
+
+class UShort(CType):
+    c_name = 'unsigned short'
+
+
+class Char(CType):
+    c_name = 'char'
+
+
+class UChar(CType):
+    c_name = 'unsigned char'
+
+
+class Long(CType):
+    c_name = 'long'
+
+
+class ULong(CType):
+    c_name = 'unsigned long'
+
+
+class LongLong(CType):
+    c_name = 'long long'
+
+
+class ULongLong(CType):
+    c_name = 'unsigned long long'
+
+
+class Float(CType):
+    c_name = 'float'
+
+
+class Double(CType):
+    c_name = 'double'
+
+
+class LongDouble(CType):
+    c_name = 'long double'
+
+
+#------------------------------------------------------------------------------
+# Ast nodes
+#------------------------------------------------------------------------------
+
+class Location(object):
+
+    def __init__(self, header, lineno):
+        self.header = header
+        self.lineno = lineno
 
 
 class ASTNode(object):
 
-    def __init__(self, parent, *args, **kwargs):
-        self.parent = parent
+    def __init__(self, *args, **kwargs):
         self.init(*args, **kwargs)
 
     def init(self, *args, **kwargs):
         pass
 
-    def render(self):
-        raise NotImplementedError
-    
+
+#------------------------------------------------------------------------------
+# Typedef
+#------------------------------------------------------------------------------
+class Typedef(ASTNode):
+
+    def init(self, identifier, location=None):
+        self.identifier = identifier
+        self.location = location
+        self._typ = None
+
     @property
-    def module(self):
-        """ Grab the top level module node from any given node.
-
-        """
-        if isinstance(self, Module):
-            return self
-        else:
-            return self.parent.module
-
-
-#------------------------------------------------------------------------------
-# Fundamental Types
-#------------------------------------------------------------------------------
-class FundamentalType(ASTNode):
+    def typ(self):
+        return self._typ
     
-    _c_type = ''
-
-    def c_var_to_object(self, name):
-        return name
-
-    def object_var_to_c(self, name):
-        return name
-
-    def c_type(self):
-        return self._c_type
-
-
-class Void(FundamentalType):
-    _c_type = 'void'
-
-
-class Int(FundamentalType):
-    _c_type = 'int'
-
-
-class UInt(FundamentalType):
-    _c_type = 'unsigned int'
-
-
-class Short(FundamentalType):
-    _c_type = 'short'
-
-
-class UShort(FundamentalType):
-    _c_type = 'unsigned int'
-
-
-class Char(FundamentalType):
-    _c_type = 'char'
-
-
-class UChar(FundamentalType):
-    _c_type = 'unsigned char'
-
-
-class Long(FundamentalType):
-    _c_type = 'long'
-
-
-class ULong(FundamentalType):
-    _c_type = 'unsigned long'
-
-
-class LLong(FundamentalType):
-    _c_type = 'long long'
-
-
-class ULLong(FundamentalType):
-    _c_type = 'unsigned long long'
-
-
-class Float(FundamentalType):
-    _c_type = 'float'
-
-
-class Double(FundamentalType):
-    _c_type = 'double'
-
-
-class LDouble(FundamentalType):
-    _c_type = 'long double'
-
-
-fundamental_map = {
-    ('char',): Char,
-    ('char', 'signed'): Char,
-    ('char', 'unsigned'): UChar,
-    ('double',): Double,
-    ('double', 'long'): LDouble,
-    ('float',): Float,
-    ('int',): Int, 
-    ('int', 'long'): Long,
-    ('int', 'long', 'long'): LLong,
-    ('int', 'long', 'signed'): Long,
-    ('int', 'long', 'unsigned'): ULong,
-    ('int', 'long', 'long', 'signed'): LLong,
-    ('int', 'long', 'long', 'unsigned'): ULLong,
-    ('int', 'short'): Short, 
-    ('int', 'short', 'signed'): Short,
-    ('int', 'short', 'unsigned'): UShort,
-    ('int', 'signed'): Int,
-    ('int', 'unsigned'): UInt,
-    ('long',): Long,
-    ('long', 'long'): LLong,
-    ('long', 'signed'): Long,
-    ('long', 'unsigned'): ULong,
-    ('long', 'long', 'signed'): LLong,
-    ('long', 'long', 'unsigned'): ULLong,
-    ('short',): Short,
-    ('short', 'unsigned'): UShort,
-    ('short', 'signed'): Short,
-    ('void',): Void,
-}
-
-
-def gen_type(type_name):
-    class DummyType(FundamentalType):
-        _c_type = type_name
-    return DummyType
-
-
-def get_fundamental_type(*names):
-    key = tuple(sorted(names))
-    if key not in fundamental_map:
-        #raise TypeError('Cannot find fundamental type for `%s`' % names)
-        res = gen_type(key[0])
-    else:
-        res = fundamental_map[key]
-    return res
+    @typ.setter
+    def typ(self, val):
+        if self._typ is not None:
+            raise RuntimeError('Typedef type already set.')
+        self._typ = val
 
 
 #------------------------------------------------------------------------------
@@ -150,19 +137,32 @@ def get_fundamental_type(*names):
 #------------------------------------------------------------------------------
 class Field(ASTNode):
     
-    def init(self, identifier=None, typ=None):
+    def init(self, identifier, location=None):
         self.identifier = identifier
-        self.typ = typ
-        self.mode = 'rw'
+        self.location = location
+        self.typ = None
+     
 
+class EnumValue(ASTNode):
+
+    def init(self, identifier, value):
+        self.identifier = identifier
+        self.value = value
+
+   
 class Container(ASTNode):
     
-    def init(self, identifier=None, fields=None):
+    def init(self, identifier, location=None):
         self.identifier = identifier
-        self.fields = fields or []
+        self.location = location
+        self.fields = []
     
     def add_field(self, field):
         self.fields.append(field)
+    
+    @property
+    def opaque(self):
+        return len(self.fields) == 0
 
 
 class Struct(Container):
@@ -173,47 +173,25 @@ class Union(Container):
     pass
 
 
-class EnumValue(ASTNode):
-
-    def init(self, identifier=None, value=None):
-        self.identifier = identifier
-        self.value = value
-
-
-class Enum(ASTNode):
-
-    def init(self, identifier=None, values=None):
-        self.identifier = identifier
-        self.values = values or []
-
-    def add_value(self, value):
-        self.values.append(value)
-    
+class Enum(Container):
+    pass
+        
 
 #------------------------------------------------------------------------------
 # Pointers and Arrays
 #------------------------------------------------------------------------------
 class Pointer(ASTNode):
 
-    def init(self, typ=None):
-        self.typ = typ
+    def init(self):
+        self.typ = None
 
 
 class Array(ASTNode):
 
-    def init(self, typ=None, dim=None):
-        self.typ = typ
+    def init(self, dim):
+        self.typ = None
         self.dim = dim
 
-
-#------------------------------------------------------------------------------
-# Typedef
-#------------------------------------------------------------------------------
-class Typedef(ASTNode):
-
-    def init(self, identifier=None, typ=None):
-        self.identifier = identifier
-        self.typ = typ
 
 
 #------------------------------------------------------------------------------
@@ -221,17 +199,18 @@ class Typedef(ASTNode):
 #------------------------------------------------------------------------------
 class Argument(ASTNode):
 
-    def init(self, identifier=None, typ=None):
+    def init(self, identifier):
         self.identifier = identifier
-        self.typ = typ
+        self.typ = None
 
 
 class Function(ASTNode):
 
-    def init(self, identifier=None, res_typ=None, arguments=None):
+    def init(self, identifier, location):
         self.identifier = identifier
-        self.res_typ = res_typ
-        self.arguments = arguments or []
+        self.location = location
+        self.res_typ = None
+        self.arguments = []
 
     def add_argument(self, argument):
         self.arguments.append(argument)
@@ -242,8 +221,8 @@ class Function(ASTNode):
 #------------------------------------------------------------------------------
 class Module(ASTNode):
 
-    def init(self, items=None):
-        self.items = items or []
+    def init(self):
+        self.items = []
     
     def add_item(self, item):
         self.items.append(item)
