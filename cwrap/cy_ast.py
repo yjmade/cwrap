@@ -97,8 +97,8 @@ class LongDouble(CType):
 
 class Location(object):
 
-    def __init__(self, header, lineno):
-        self.header = header
+    def __init__(self, header_name, lineno):
+        self.header_name = header_name
         self.lineno = lineno
 
 

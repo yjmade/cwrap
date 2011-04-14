@@ -166,12 +166,20 @@ class ASTTranslator(object):
         # Functions should never be receclared, but pointers to them 
         # may get referenced in structs.
         decl_node = self.node_stack[-2]
+
+        # XXX - only a temporary hack until we support
+        # function pointers
+        i = -3
+        while not isinstance(decl_node, pcp_ast.Decl):
+            decl_node = self.node_stack[i]
+            i -= 1
+
         identifier = decl_node.name
     
         if identifier in self.functions:
             return self.functions[identifier]
         
-        coord = func_code.coord
+        coord = func_node.coord
         location = cy_ast.Location(coord.file, coord.line)
         function = cy_ast.Function(identifier, location)
         function.res_type = self.visit(func_node.type)
@@ -224,14 +232,17 @@ class ASTTranslator(object):
         return pointer
 
     def generate_array(self, array_node):
-        array = cy_ast.Array(int(array_node.dim.value))
+        if array_node.dim is None:
+            dim = None
+        else:
+            dim = int(array_node.dim.value)
+        array = cy_ast.Array(dim)
         array.typ = self.visit(array_node.type)
         return array
 
     def generate_argument(self, decl_node):
         identifier = decl_node.name
         argument = cy_ast.Argument(identifier)
-        self.parents.append(argument)
         argument.typ = self.visit(decl_node.type)
         return argument
 
