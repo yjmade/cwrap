@@ -123,251 +123,130 @@ class Code(object):
 class ExternRenderer(object):
 
     def __init__(self):
-        self.node_stack = [None]
+        self.context = [None]
         self.code = None
-        self.header = None
 
-    def render(self, module_node, header):
-        self.node_stack = [None]
+    def render(self, items, header_name):
+        self.context = [None]
         self.code = Code()
-        self.header = header
 
-        header_name = header.header_name
         self.code.write_i('cdef extern from "%s":\n\n' % header_name)
         self.code.indent()
-        for item in module_node.items:
-            if item.location.header_name == header.path:
-                self.visit(item)
-            else:
-                node = item
-                if hasattr(node, 'location') and node.location is not None:
-                    if node.location.header_name is not None:
-                        if node.location.header_name != self.header.path:
-                            mod = '_' + os.path.split(node.location.header_name)[-1].rstrip('.h')
-                            self.code.add_cimport_from(mod, '*')
-
+        for item in items:
+            self.visit(item)
         self.code.dedent()
 
         return self.code.code()
      
     def visit(self, node):
-        # add any imports we to reference if the item is defined
-        # outside of the current header
-        if hasattr(node, 'location') and node.location is not None:
-            if node.location.header_name is not None:
-                if node.location.header_name != self.header.path:
-                    mod = '_' + os.path.split(node.location.header_name)[-1].rstrip('.h')
-                    self.code.add_cimport_from(mod, '*')
-        self.node_stack.append(node)
+        self.context.append(node)
         method = 'visit_' + node.__class__.__name__
         visitor = getattr(self, method, self.unhandled_node)
         visitor(node)
-        self.node_stack.pop()
+        self.context.pop()
 
     def unhandled_node(self, node):
         print 'Unhandled node in extern renderer: `%s`' % node
     
     def visit_Typedef(self, typedef):
-        if isinstance(typedef.typ, (cy_ast.Struct, cy_ast.Enum, cy_ast.Union)):
-            self.visit(typedef.typ)
-        elif isinstance(typedef.typ, (cy_ast.Pointer, cy_ast.Array)):
-            identifier = typedef.identifier
+        if isinstance(typedef.typ, (cy_ast.Struct, cy_ast.Enumeration, cy_ast.Union)):
+            #self.visit(typedef.typ)
+            self.code.write_i('ctypedef %s %s\n\n' % (typedef.typ.name, typedef.name))
+        elif isinstance(typedef.typ, (cy_ast.PointerType, cy_ast.ArrayType)):
+            name = typedef.name
             self.code.write_i('ctypedef ')
             self.visit(typedef.typ)
-            self.code.write(' %s\n\n' % identifier)
-        elif isinstance(typedef.typ, cy_ast.Typedef):
-            identifier = typedef.identifier
-            typ_identifier = typedef.typ.identifier
-            self.code.write_i('ctypedef %s %s\n\n' % (typ_identifier, identifier))
-        elif isinstance(typedef.typ, type) and issubclass(typedef.typ, cy_ast.CType):
-            identifier = typedef.identifier
-            c_name = typedef.typ.c_name
-            self.code.write_i('ctypedef %s %s\n\n' % (c_name, identifier))
+            self.code.write(' %s\n\n' % name)
+        elif isinstance(typedef.typ, (cy_ast.Typedef, cy_ast.FundamentalType)):
+            name = typedef.name
+            typ_name = typedef.typ.name
+            self.code.write_i('ctypedef %s %s\n\n' % (typ_name, name))
         else:
             print 'Unhandled typedef type in extern renderer: `%s`' % typedef.typ
 
     def visit_Struct(self, struct):
-        st_name = struct.identifier
-        parent = self.node_stack[-2]
-        if isinstance(parent, cy_ast.Typedef):
-            td_name = parent.identifier
-            if td_name == st_name:
-                if struct.opaque:
-                    self.code.write_i('cdef struct %s\n' % st_name)
-                else:
-                    self.code.write_i('cdef struct %s:\n' % st_name)
-                    self.code.indent()
-                    for field in struct.fields:
-                        self.visit(field)
-                    self.code.dedent()
-            elif st_name is None:
-                if struct.opaque:
-                    self.code.write_i('ctypedef struct %s\n' % td_name)
-                else:
-                    self.code.write_i('ctypedef struct %s:\n' % td_name)
-                    self.code.indent()
-                    for field in struct.fields:
-                        self.visit(field)
-                    self.code.dedent()
-            else:
-                if struct.opaque:
-                    self.code.write_i('cdef struct %s\n' % st_name)
-                else:
-                    self.code.write_i('cdef struct %s:\n' % st_name)
-                    self.code.indent()
-                    for field in struct.fields:
-                        self.visit(field)
-                    self.code.dedent()
-                self.code.write_i('ctypedef %s %s\n' % (st_name, td_name))
+        name = struct.name
+        if struct.opaque:
+            self.code.write_i('cdef struct %s\n' % name)
         else:
-            if struct.opaque:
-                self.code.write_i('cdef struct %s\n' % st_name)
-            else:
-                self.code.write_i('cdef struct %s:\n' % st_name)
-                self.code.indent()
-                for field in struct.fields:
-                    self.visit(field)
-                self.code.dedent()
+            self.code.write_i('cdef struct %s:\n' % name)
+            self.code.indent()
+            for field in struct.members:
+                self.visit(field)
+            self.code.dedent()
         self.code.write('\n')
     
     def visit_Union(self, union):
-        un_name = union.identifier
-        parent = self.node_stack[-2]
-        if isinstance(parent, cy_ast.Typedef):
-            td_name = parent.identifier
-            if td_name == un_name:
-                if union.opaque:
-                    self.code.write_i('cdef union %s\n' % un_name)
-                else:
-                    self.code.write_i('cdef union %s:\n' % un_name)
-                    self.code.indent()
-                    for field in union.fields:
-                        self.visit(field)
-                    self.code.dedent()
-            elif un_name is None:
-                if union.opaque:
-                    self.code.write_i('ctypedef union %s\n' % td_name)
-                else:
-                    self.code.write_i('ctypedef union %s:\n' % td_name)
-                    self.code.indent()
-                    for field in union.fields:
-                        self.visit(field)
-                    self.code.dedent()
-            else:
-                if union.opaque:
-                    self.code.write_i('cdef union %s\n' % un_name)
-                else:
-                    self.code.write_i('cdef union %s:\n' % un_name)
-                    self.code.indent()
-                    for field in union.fields:
-                        self.visit(field)
-                    self.code.dedent()
-                self.code.write_i('ctypedef %s %s\n' % (un_name, td_name))
+        name = union.name
+        if union.opaque:
+            self.code.write_i('cdef union %s\n' % name)
         else:
-            if union.opaque:
-                self.code.write_i('cdef union %s\n' % un_name)
-            else:
-                self.code.write_i('cdef union %s:\n' % un_name)
-                self.code.indent()
-                for field in union.fields:
-                    self.visit(field)
-                self.code.dedent()
+            self.code.write_i('cdef union %s:\n' % name)
+            self.code.indent()
+            for field in union.members:
+                self.visit(field)
+            self.code.dedent()
         self.code.write('\n')
 
     def visit_Field(self, field):
-        name = field.identifier
-        if isinstance(field.typ, cy_ast.Typedef):
-            c_name = field.typ.identifier
-        elif isinstance(field.typ, type) and issubclass(field.typ, cy_ast.CType):
-            c_name = field.typ.c_name
-        elif isinstance(field.typ, (cy_ast.Pointer, cy_ast.Array)):
-            c_name, name = self.apply_modifier(field.typ, name)
+        name = field.name
+        if isinstance(field.typ, (cy_ast.Typedef, cy_ast.FundamentalType,
+                                  cy_ast.Struct, cy_ast.Enumeration)):
+            typ_name = field.typ.name
+        elif isinstance(field.typ, (cy_ast.PointerType, cy_ast.ArrayType)):
+            typ_name, name = self.apply_modifier(field.typ, name)
         else:
             print 'Unhandled field type in extern renderer: `%s`.' % field.typ
-            c_name = UNDEFINED
-        self.code.write_i('%s %s\n' % (c_name, name))
+            typ_name = UNDEFINED
+        self.code.write_i('%s %s\n' % (typ_name, name))
    
-    def visit_Enum(self, enum):
-        en_name = enum.identifier
-        parent = self.node_stack[-2]
-        if isinstance(parent, cy_ast.Typedef):
-            td_name = parent.identifier
-            if td_name == en_name:
-                if enum.opaque:
-                    self.code.write_i('cdef enum %s\n' % en_name)
-                else:
-                    self.code.write_i('cdef enum %s:\n' % en_name)
-                    self.code.indent()
-                    for field in enum.fields:
-                        self.visit(field)
-                    self.code.dedent()
-            elif en_name is None:
-                if enum.opaque:
-                    self.code.write_i('ctypedef enum %s\n' % td_name)
-                else:
-                    self.code.write_i('ctypedef enum %s:\n' % td_name)
-                    self.code.indent()
-                    for field in enum.fields:
-                        self.visit(field)
-                    self.code.dedent()
+    def visit_Enumeration(self, enum):
+        name = enum.name
+        if enum.opaque:
+            if name is None:
+                self.code.write_i('cdef enum\n')
             else:
-                if enum.opaque:
-                    self.code.write_i('cdef enum %s\n' % en_name)
-                else:
-                    self.code.write_i('cdef enum %s:\n' % en_name)
-                    self.code.indent()
-                    for field in enum.fields:
-                        self.visit(field)
-                    self.code.dedent()
-                self.code.write_i('ctypedef %s %s\n' % (en_name, td_name))
+                self.code.write_i('cdef enum %s\n' % name)
         else:
-            if enum.opaque:
-                if en_name is None:
-                    self.code.write_i('cdef enum\n')
-                else:
-                    self.code.write_i('cdef enum %s\n' % en_name)
+            if name is None:
+                self.code.write_i('cdef enum:\n')
             else:
-                if en_name is None:
-                    self.code.write_i('cdef enum:\n')
-                else:
-                    self.code.write_i('cdef enum %s:\n' % en_name)
-                self.code.indent()
-                for field in enum.fields:
-                    self.visit(field)
-                self.code.dedent()
+                self.code.write_i('cdef enum %s:\n' % name)
+            self.code.indent()
+            for value in enum.values:
+                self.visit(value)
+            self.code.dedent()
         self.code.write('\n')
    
     def visit_EnumValue(self, enum_value):
-        name = enum_value.identifier
+        name = enum_value.name
         self.code.write_i('%s\n' % name)
     
     def visit_Function(self, function):
-        identifier = function.identifier
-        res_type = function.res_type
+        name = function.name
+        returns = function.returns
 
-        if isinstance(res_type, cy_ast.Typedef):
-            self.code.write_i('%s ' % res_type.identifier)
-        elif isinstance(res_type, type) and issubclass(res_type, cy_ast.CType):
-            self.code.write_i('%s ' % res_type.c_name)
-        elif isinstance(res_type, cy_ast.Pointer):
-            c_name, identifier = self.apply_modifier(res_type, identifier)
-            self.code.write_i('%s ' % c_name)
+        if isinstance(returns, (cy_ast.Typedef, cy_ast.FundamentalType, cy_ast.Enumeration)):
+            self.code.write_i('%s ' % returns.name)
+        elif isinstance(returns, cy_ast.PointerType):
+            res_name, name = self.apply_modifier(returns, name)
+            self.code.write_i('%s ' % res_name)
         else:
-            print 'undhandled return function type node: `%s`' % res_type
+            print 'undhandled return function type node: `%s`' % returns
             self.code.write_i('%s\n\n' % UNDEFINED)
             return 
         
-        self.code.write('%s(' % identifier)
+        self.code.write('%s(' % name)
 
         if len(function.arguments) == 0:
-            print 'Functions with 0 aruguments not handled'
-            self.code.write('%s)\n\n' % UNDEFINED)
+            self.code.write(')\n\n')
             return
 
         if len(function.arguments) == 1:
-            if function.arguments[0].typ == cy_ast.Void:
-                self.code.write(')\n\n')
-                return
+            if isinstance(function.arguments[0].typ, cy_ast.FundamentalType):
+                if function.arguments[0].typ.name == 'void':
+                    self.code.write(')\n\n')
+                    return
         
         for arg in function.arguments[:-1]:
             self.visit(arg)
@@ -377,39 +256,73 @@ class ExternRenderer(object):
         self.code.write(')\n\n')
 
     def visit_Argument(self, argument):
-        identifier = argument.identifier
+        name = argument.name
         typ = argument.typ
-        if isinstance(typ, cy_ast.Typedef):
-            c_name = typ.identifier
-        elif isinstance(typ, type) and issubclass(typ, cy_ast.CType):
-            c_name = typ.c_name
-        elif isinstance(typ, (cy_ast.Pointer, cy_ast.Array)):
-            c_name, identifier = self.apply_modifier(typ, identifier)
+        if isinstance(typ, (cy_ast.Typedef, cy_ast.FundamentalType, 
+                            cy_ast.Enumeration, cy_ast.Struct)):
+            typ_name = typ.name
+        elif isinstance(typ, (cy_ast.PointerType, cy_ast.ArrayType)):
+            typ_name, name = self.apply_modifier(typ, name)
+        elif isinstance(typ, cy_ast.CvQualifiedType):
+            typ_name = typ.name
         else:
             print 'unhandled argument type node: `%s`' % typ
-            c_name = UNDEFINED
-        self.code.write('%s %s' % (c_name, identifier))
+            typ_name = UNDEFINED
+        if name is not None:
+            self.code.write('%s %s' % (typ_name, name))
+        else:
+            self.code.write('%s' % typ_name)
 
-    def visit_Pointer(self, pointer):
+    def visit_PointerType(self, pointer):
         self.visit(pointer.typ)
 
-    def visit_Array(self, array):
+    def visit_ArrayType(self, array):
         self.visit(array.typ)
-        
+       
+    def visit_Ignored(self, node):
+        pass
+
+    def visit_CvQualifiedType(self, node):
+        pass
+
+    def visit_FunctionType(self, node):
+        pass
+
+    def visit_OperatorFunction(self, node):
+        pass
+
+    def visit_Macro(self, node):
+        pass
+
+    def visit_Alias(self, node):
+        pass
+
+    def visit_File(self, node):
+        pass
+   
+    def visit_Variable(self, var):
+        name = var.name
+        if isinstance(var.typ, (cy_ast.Typedef, cy_ast.FundamentalType)):
+            self.code.write_i('%s %s\n\n' % (var.typ.name, name))
+        else:
+            print 'unhandled variable typ: `%s`' % var.typ
+            self.code.write_i(UNDEFINED + '\n\n')
+
     def apply_modifier(self, node, name):
         stack = []
         typ = node
         
-        while isinstance(typ, (cy_ast.Pointer, cy_ast.Array)):
-            stack.append(typ)
+        while isinstance(typ, (cy_ast.PointerType, cy_ast.ArrayType,
+                               cy_ast.CvQualifiedType)):
+            if isinstance(typ, (cy_ast.PointerType, cy_ast.ArrayType)):
+                stack.append(typ)
             typ = typ.typ
         
-        if isinstance(typ, cy_ast.Typedef):
-            c_name = typ.identifier
-        elif isinstance(typ, type) and issubclass(typ, cy_ast.CType):
-            c_name = typ.c_name
+        if isinstance(typ, (cy_ast.Typedef, cy_ast.FundamentalType, 
+                            cy_ast.Struct)):
+            typ_name = typ.name
         else:
-            print 'Unhandled node in apply_notifier: `%s`.' % typ
+            print 'Unhandled typ node in apply_modifier: `%s`.' % typ
             return UNDEFINED, UNDEFINED
         
         for i, node in enumerate(stack):
@@ -417,17 +330,19 @@ class ExternRenderer(object):
                 if not isinstance(node, type(stack[i - 1])):
                     name = '(' + name + ')'
             
-            if isinstance(node, cy_ast.Pointer):
+            if isinstance(node, cy_ast.PointerType):
                 name = '*' + name
-            elif isinstance(node, cy_ast.Array):
-                dim = node.dim
-                if dim is None:
+            elif isinstance(node, cy_ast.ArrayType):
+                max = node.max
+                if max is None:
                     dim = ''
+                else:
+                    dim = str(max + 1)
                 name = name + ('[%s]' % dim)  
             else:
                 print 'Unhandled node in apply_notifier: `%s`.' % node
                 return UNDEFINED, UNDEFINED
 
-        return c_name, name
+        return typ_name, name
 
 

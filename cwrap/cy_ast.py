@@ -95,136 +95,201 @@ class LongDouble(CType):
 # Ast nodes
 #------------------------------------------------------------------------------
 
-class Location(object):
-
-    def __init__(self, header_name, lineno):
-        self.header_name = header_name
-        self.lineno = lineno
-
 
 class ASTNode(object):
 
     def __init__(self, *args, **kwargs):
         self.init(*args, **kwargs)
+        self.location = None
 
     def init(self, *args, **kwargs):
         pass
 
 
-#------------------------------------------------------------------------------
-# Typedef
-#------------------------------------------------------------------------------
 class Typedef(ASTNode):
 
-    def init(self, identifier, location=None):
-        self.identifier = identifier
-        self.location = location
-        self._typ = None
-
-    @property
-    def typ(self):
-        return self._typ
-    
-    @typ.setter
-    def typ(self, val):
-        if self._typ is not None:
-            raise RuntimeError('Typedef type already set.')
-        self._typ = val
+    def init(self, name, typ):
+        self.name = name
+        self.typ = typ
 
 
-#------------------------------------------------------------------------------
-# Structs, Unions, Enums
-#------------------------------------------------------------------------------
-class Field(ASTNode):
-    
-    def init(self, identifier, location=None):
-        self.identifier = identifier
-        self.location = location
-        self.typ = None
-     
+class FundamentalType(ASTNode):
 
-class EnumValue(ASTNode):
-
-    def init(self, identifier, value):
-        self.identifier = identifier
-        self.value = value
-
-   
-class Container(ASTNode):
-    
-    def init(self, identifier, location=None):
-        self.identifier = identifier
-        self.location = location
-        self.fields = []
-    
-    def add_field(self, field):
-        self.fields.append(field)
-    
-    @property
-    def opaque(self):
-        return len(self.fields) == 0
+    def init(self, name, size, align):
+        self.name = name
+        self.size = size
+        self.align = align
 
 
-class Struct(Container):
-    pass
+class CvQualifiedType(ASTNode):
+
+    def init(self, typ, const, volatile):
+        self.typ = typ
+        self.const = const
+        self.volatile = volatile
 
 
-class Union(Container):
-    pass
+class Ignored(ASTNode):
 
-
-class Enum(Container):
-    pass
-        
-
-#------------------------------------------------------------------------------
-# Pointers and Arrays
-#------------------------------------------------------------------------------
-class Pointer(ASTNode):
-
-    def init(self):
-        self.typ = None
-
-
-class Array(ASTNode):
-
-    def init(self, dim):
-        self.typ = None
-        self.dim = dim
-
-
-
-#------------------------------------------------------------------------------
-# Function
-#------------------------------------------------------------------------------
-class Argument(ASTNode):
-
-    def init(self, identifier):
-        self.identifier = identifier
-        self.typ = None
-
-
-class Function(ASTNode):
-
-    def init(self, identifier, location):
-        self.identifier = identifier
-        self.location = location
-        self.res_typ = None
+    def init(self, name):
+        self.name = name
         self.arguments = []
 
+    def fixup_argtypes(self, typemap):
+        for arg in self.arguments:
+            arg.typ = typemap[arg.typ]
+            
     def add_argument(self, argument):
         self.arguments.append(argument)
 
 
-#------------------------------------------------------------------------------
-# Module
-#------------------------------------------------------------------------------
-class Module(ASTNode):
-
-    def init(self):
-        self.items = []
+class Field(ASTNode):
     
-    def add_item(self, item):
-        self.items.append(item)
+    def init(self, name, typ, bits, offset):
+        self.name = name
+        self.typ = typ
+        self.bits = bits
+        self.offset = offset
+   
+
+class Struct(ASTNode):
+    
+    def init(self, name, align, members, bases, size):
+        self.name = name
+        self.align = align
+        self.members = members
+        self.bases = bases
+        self.size = size
+    
+    @property
+    def opaque(self):
+        return len(self.members) == 0
+
+
+class Union(ASTNode):
+    
+    def init(self, name, align, members, bases, size):
+        self.name = name
+        self.align = align
+        self.members = members
+        self.bases = bases
+        self.size = size
+    
+    @property
+    def opaque(self):
+        return len(self.members) == 0
+
+
+class EnumValue(ASTNode):
+
+    def init(self, name, value):
+        self.name = name
+        self.value = value
+
+
+class Enumeration(ASTNode):
+    
+    def init(self, name, size, align):
+        self.name = name
+        self.size = size
+        self.align = align
+        self.values = []
+
+    def add_value(self, val):
+        self.values.append(val)
+        
+    @property
+    def opaque(self):
+        return len(self.values) == 1
+
+
+class PointerType(ASTNode):
+
+    def init(self, typ, size, align):
+        self.typ = typ
+        self.size = size
+        self.align = align
+        
+
+class ArrayType(ASTNode):
+
+    def init(self, typ, min, max):
+        self.typ = typ
+        self.min = int(min.rstrip('lu'))
+        self.max = int(max.rstrip('lu'))
+
+
+class Argument(ASTNode):
+
+    def init(self, typ, name):
+        self.typ = typ
+        self.name = name
+
+
+class Function(ASTNode):
+
+    def init(self, name, returns, attributes, extern):
+        self.name = name
+        self.returns = returns
+        self.attributes = attributes
+        self.extern = extern
+        self.arguments = []
+
+    def fixup_argtypes(self, typemap):
+        for arg in self.arguments:
+            arg.typ = typemap[arg.typ]
+            
+    def add_argument(self, argument):
+        self.arguments.append(argument)
+
+
+class FunctionType(ASTNode):
+
+    def init(self, returns, attributes):
+        self.returns = returns
+        self.attributes = attributes
+        self.arguments = []
+
+    def fixup_argtypes(self, typemap):
+        for arg in self.arguments:
+            arg.typ = typemap[arg.typ]
+            
+    def add_argument(self, argument):
+        self.arguments.append(argument)
+
+
+class OperatorFunction(ASTNode):
+
+    def init(self, name, returns):
+        self.name = name
+        self.returns = returns
+
+
+class Macro(ASTNode):
+
+    def init(self, name, args, body):
+        self.name = name
+        self.args = args
+        self.body = body
+
+
+class Alias(ASTNode):
+
+    def init(self, name, value, typ=None):
+        self.name = name
+        self.value = value
+        self.typ = typ
+
+
+class File(ASTNode):
+
+    def init(self, name):
+        self.name = name
     
    
+class Variable(ASTNode):
+
+    def init(self, name, typ,  init):
+        self.name = name
+        self.typ = typ
+        self.init = init
