@@ -1,3 +1,6 @@
+#------------------------------------------------------------------------------
+# This file is adapted from ctypeslib.codegen.gccxmlparser
+#------------------------------------------------------------------------------
 from xml.etree import cElementTree
 import os
 import sys
