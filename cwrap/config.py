@@ -3,14 +3,21 @@ import os
 
 class Header(object):
 
-    def __init__(self, path, mod_name=None):
-        self.path = path
-        self.header_name = os.path.split(path)[-1]
+    def __init__(self, path, pxd=None, pyx=None):
+        self.path = os.path.abspath(path)
+        self.header_name = os.path.split(self.path)[-1] 
 
-        if mod_name is None:
-            self.mod_name = self.header_name.rstrip('.h')
+        mod_base = self.header_name.rstrip('.h')
+        
+        if pxd is None:
+            self.pxd = '_' + mod_base
         else:
-            self.mod_name = mod_name
+            self.pxd = extern
+
+        if pyx is None:
+            self.pyx = mod_base
+        else:
+            self.pyx = pyx
 
 
 class Config(object):
@@ -19,5 +26,16 @@ class Config(object):
         self.include_dirs = include_dirs or []
         self.save_dir = save_dir or os.getcwd()
         self.headers = headers or []
+        
+        self._header_map = {}
+        for header in self.headers:
+            self._header_map[header.path] = header
+    
+    def header(self, header_path):
+        return self._header_map[header_path]
 
+    def pxd_name(self, header_path):
+        return self._header_map[header_path].pxd
 
+    def pyx_name(self, header_path):
+        return self._header_map[header_path].pyx

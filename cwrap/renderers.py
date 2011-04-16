@@ -64,9 +64,6 @@ class Code(object):
                     import_lines.append('cimport %s as %s' % (module, name))
             else:
                 import_lines.append('cimport %s' % module)
-        
-        if import_lines:
-            import_lines.append('\n')
 
         # cimports from
         cimport_from_items = sorted( self._cimports_from.iteritems() )
@@ -81,9 +78,6 @@ class Code(object):
             sub_txt = ', '.join(sub_lines)
             import_lines.append('from %s cimport %s' % (module, sub_txt))
 
-        if import_lines:
-            import_lines.append('\n')
-
         # cimports
         import_items = sorted( self._imports.iteritems() )
         for module, as_names in import_items:
@@ -92,9 +86,6 @@ class Code(object):
                     import_lines.append('import %s as %s' % (module, name))
             else:
                 import_lines.append('import %s' % module)
-
-        if import_lines:
-            import_lines.append('\n')
 
         # cimports from
         import_from_items = sorted( self._imports_from.iteritems() )
@@ -125,19 +116,45 @@ class ExternRenderer(object):
     def __init__(self):
         self.context = [None]
         self.code = None
+        self.header_path = None
+        self.config = None
 
-    def render(self, items, header_name):
+    def render(self, items, header_path, config):
         self.context = [None]
         self.code = Code()
+        self.header_path = header_path
+        self.config = config
+        
+        # filter for the items that are toplevel in this header
+        # and order them by their appearance
+        toplevel = filter(lambda item: item.location[0] == header_path, items)
+        toplevel.sort(key=lambda item: int(item.location[1]))
 
+        # work out any imports we need
+        #for item in toplevel:
+        #    self.resolve_imports(item, set())
+
+        header_name = self.config.header(header_path).header_name
         self.code.write_i('cdef extern from "%s":\n\n' % header_name)
         self.code.indent()
-        for item in items:
+        for item in toplevel:
             self.visit(item)
         self.code.dedent()
 
         return self.code.code()
-     
+    
+    def resolve_imports(self, node, visited):
+        if isinstance(node, cy_ast.ASTNode):
+            if not isinstance(node, cy_ast.FundamentalType):
+                if node.location:
+                    if node.location[0] != self.header_path:
+                        pxd = self.config.pxd_name(node.location[0])
+                        self.code.add_cimport_from(pxd, '*')
+            visited.add(node)
+            for snode in node.refs():
+                if snode not in visited:
+                    self.resolve_imports(snode, visited)
+
     def visit(self, node):
         self.context.append(node)
         method = 'visit_' + node.__class__.__name__
@@ -258,16 +275,19 @@ class ExternRenderer(object):
     def visit_Argument(self, argument):
         name = argument.name
         typ = argument.typ
+
+        if isinstance(typ, cy_ast.CvQualifiedType):
+            typ = typ.typ
+
         if isinstance(typ, (cy_ast.Typedef, cy_ast.FundamentalType, 
                             cy_ast.Enumeration, cy_ast.Struct)):
             typ_name = typ.name
         elif isinstance(typ, (cy_ast.PointerType, cy_ast.ArrayType)):
             typ_name, name = self.apply_modifier(typ, name)
-        elif isinstance(typ, cy_ast.CvQualifiedType):
-            typ_name = typ.name
         else:
             print 'unhandled argument type node: `%s`' % typ
             typ_name = UNDEFINED
+
         if name is not None:
             self.code.write('%s %s' % (typ_name, name))
         else:
@@ -312,6 +332,9 @@ class ExternRenderer(object):
         stack = []
         typ = node
         
+        if name is None:
+            name = ''
+
         while isinstance(typ, (cy_ast.PointerType, cy_ast.ArrayType,
                                cy_ast.CvQualifiedType)):
             if isinstance(typ, (cy_ast.PointerType, cy_ast.ArrayType)):
@@ -331,7 +354,10 @@ class ExternRenderer(object):
                     name = '(' + name + ')'
             
             if isinstance(node, cy_ast.PointerType):
-                name = '*' + name
+                try:
+                    name = '*' + name
+                except:
+                    import pdb; pdb.set_trace()
             elif isinstance(node, cy_ast.ArrayType):
                 max = node.max
                 if max is None:

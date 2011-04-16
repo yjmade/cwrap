@@ -1,101 +1,5 @@
 
 
-#------------------------------------------------------------------------------
-# Builtin types
-#------------------------------------------------------------------------------
-
-# This dict is populated by the CTypeMeta class
-C_TYPES = {}
-
-
-class CTypeMeta(type):
-
-    def __new__(meta, cls_name, bases, cls_dict):
-        cls = type.__new__(meta, cls_name, bases, cls_dict)
-        C_TYPES[cls.c_name] = cls
-        return cls
-
-
-class CType(object):
-    
-    __metaclass__ = CTypeMeta
-
-    c_name = ''
-    
-    @classmethod
-    def cast(cls):
-        return '<%s>' % self.c_name
-
-    @classmethod
-    def object_var_to_c(cls, name):
-        return self.cast() + name
-
-    @classmethod
-    def c_var_to_object(cls, name):
-        return '<object>' + name
-
-   
-class Void(CType):
-    c_name = 'void'
-    
-
-class Int(CType):
-    c_name = 'int'
-
-
-class UInt(CType):
-    c_name = 'unsigned int'
-
-
-class Short(CType):
-    c_name = 'short'
-
-
-class UShort(CType):
-    c_name = 'unsigned short'
-
-
-class Char(CType):
-    c_name = 'char'
-
-
-class UChar(CType):
-    c_name = 'unsigned char'
-
-
-class Long(CType):
-    c_name = 'long'
-
-
-class ULong(CType):
-    c_name = 'unsigned long'
-
-
-class LongLong(CType):
-    c_name = 'long long'
-
-
-class ULongLong(CType):
-    c_name = 'unsigned long long'
-
-
-class Float(CType):
-    c_name = 'float'
-
-
-class Double(CType):
-    c_name = 'double'
-
-
-class LongDouble(CType):
-    c_name = 'long double'
-
-
-#------------------------------------------------------------------------------
-# Ast nodes
-#------------------------------------------------------------------------------
-
-
 class ASTNode(object):
 
     def __init__(self, *args, **kwargs):
@@ -104,6 +8,9 @@ class ASTNode(object):
 
     def init(self, *args, **kwargs):
         pass
+    
+    def refs(self):
+        return []
 
 
 class Typedef(ASTNode):
@@ -111,7 +18,10 @@ class Typedef(ASTNode):
     def init(self, name, typ):
         self.name = name
         self.typ = typ
-
+    
+    def refs(self):
+        return [self.typ]
+    
 
 class FundamentalType(ASTNode):
 
@@ -120,6 +30,9 @@ class FundamentalType(ASTNode):
         self.size = size
         self.align = align
 
+    def refs(self):
+        return []
+
 
 class CvQualifiedType(ASTNode):
 
@@ -127,6 +40,9 @@ class CvQualifiedType(ASTNode):
         self.typ = typ
         self.const = const
         self.volatile = volatile
+
+    def refs(self):
+        return [self.typ]
 
 
 class Ignored(ASTNode):
@@ -142,6 +58,9 @@ class Ignored(ASTNode):
     def add_argument(self, argument):
         self.arguments.append(argument)
 
+    def refs(self):
+        return self.arguments
+
 
 class Field(ASTNode):
     
@@ -151,6 +70,9 @@ class Field(ASTNode):
         self.bits = bits
         self.offset = offset
    
+    def refs(self):
+        return [self.typ]
+
 
 class Struct(ASTNode):
     
@@ -164,6 +86,9 @@ class Struct(ASTNode):
     @property
     def opaque(self):
         return len(self.members) == 0
+
+    def refs(self):
+        return self.members
 
 
 class Union(ASTNode):
@@ -179,12 +104,18 @@ class Union(ASTNode):
     def opaque(self):
         return len(self.members) == 0
 
+    def refs(self):
+        return self.members
+
 
 class EnumValue(ASTNode):
 
     def init(self, name, value):
         self.name = name
         self.value = value
+    
+    def refs(self):
+        return []
 
 
 class Enumeration(ASTNode):
@@ -201,6 +132,9 @@ class Enumeration(ASTNode):
     @property
     def opaque(self):
         return len(self.values) == 1
+    
+    def refs(self):
+        return self.values
 
 
 class PointerType(ASTNode):
@@ -209,14 +143,20 @@ class PointerType(ASTNode):
         self.typ = typ
         self.size = size
         self.align = align
-        
+    
+    def refs(self):
+        return [self.typ]
+
 
 class ArrayType(ASTNode):
 
     def init(self, typ, min, max):
         self.typ = typ
-        self.min = int(min.rstrip('lu'))
-        self.max = int(max.rstrip('lu'))
+        self.min = min
+        self.max = max
+    
+    def refs(self):
+        return [self.typ]
 
 
 class Argument(ASTNode):
@@ -224,6 +164,9 @@ class Argument(ASTNode):
     def init(self, typ, name):
         self.typ = typ
         self.name = name
+
+    def refs(self):
+        return [self.typ]
 
 
 class Function(ASTNode):
@@ -242,6 +185,9 @@ class Function(ASTNode):
     def add_argument(self, argument):
         self.arguments.append(argument)
 
+    def refs(self):
+        return [self.returns] + self.arguments
+
 
 class FunctionType(ASTNode):
 
@@ -256,6 +202,9 @@ class FunctionType(ASTNode):
             
     def add_argument(self, argument):
         self.arguments.append(argument)
+    
+    def refs(self):
+        return [self.returns] + self.arguments
 
 
 class OperatorFunction(ASTNode):
@@ -263,6 +212,9 @@ class OperatorFunction(ASTNode):
     def init(self, name, returns):
         self.name = name
         self.returns = returns
+
+    def refs(self):
+        return [self.returns]
 
 
 class Macro(ASTNode):
@@ -279,6 +231,9 @@ class Alias(ASTNode):
         self.name = name
         self.value = value
         self.typ = typ
+    
+    def refs(self):
+        return [self.typ]
 
 
 class File(ASTNode):
@@ -293,3 +248,8 @@ class Variable(ASTNode):
         self.name = name
         self.typ = typ
         self.init = init
+
+    def refs(self):
+        return [self.typ]
+
+
