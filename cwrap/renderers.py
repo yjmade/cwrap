@@ -114,47 +114,41 @@ class Code(object):
 class ExternRenderer(object):
 
     def __init__(self):
-        self.context = [None]
+        self.context = []
+        self.modifier_context = []
         self.code = None
         self.header_path = None
         self.config = None
+        self.toplevel_ns = None
 
-    def render(self, items, header_path, config):
-        self.context = [None]
+    def render(self, namespace, header_path, config):
+        self.context = []
+        self.modifier_context = []
         self.code = Code()
         self.header_path = header_path
         self.config = config
-        
-        # filter for the items that are toplevel in this header
-        # and order them by their appearance
-        toplevel = filter(lambda item: item.location[0] == header_path, items)
-        toplevel.sort(key=lambda item: int(item.location[1]))
+        self.toplevel_ns = namespace
 
-        # work out any imports we need
-        #for item in toplevel:
-        #    self.resolve_imports(item, set())
+        # filter for the items that are in this header
+        # they are already ordered by their appearance
+        items = namespace.members
+        toplevel = []
+        for item in items:
+            if item.location and (item.location[0] == header_path):
+                toplevel.append(item)
 
         header_name = self.config.header(header_path).header_name
         self.code.write_i('cdef extern from "%s":\n\n' % header_name)
         self.code.indent()
-        for item in toplevel:
-            self.visit(item)
+        if toplevel:
+            for item in toplevel:
+                self.visit(item)
+        else:
+            self.code.write_i('pass')
         self.code.dedent()
 
         return self.code.code()
     
-    def resolve_imports(self, node, visited):
-        if isinstance(node, cy_ast.ASTNode):
-            if not isinstance(node, cy_ast.FundamentalType):
-                if node.location:
-                    if node.location[0] != self.header_path:
-                        pxd = self.config.pxd_name(node.location[0])
-                        self.code.add_cimport_from(pxd, '*')
-            visited.add(node)
-            for snode in node.refs():
-                if snode not in visited:
-                    self.resolve_imports(snode, visited)
-
     def visit(self, node):
         self.context.append(node)
         method = 'visit_' + node.__class__.__name__
@@ -166,20 +160,22 @@ class ExternRenderer(object):
         print 'Unhandled node in extern renderer: `%s`' % node
     
     def visit_Typedef(self, typedef):
-        if isinstance(typedef.typ, (cy_ast.Struct, cy_ast.Enumeration, cy_ast.Union)):
-            #self.visit(typedef.typ)
-            self.code.write_i('ctypedef %s %s\n\n' % (typedef.typ.name, typedef.name))
-        elif isinstance(typedef.typ, (cy_ast.PointerType, cy_ast.ArrayType)):
-            name = typedef.name
-            self.code.write_i('ctypedef ')
-            self.visit(typedef.typ)
-            self.code.write(' %s\n\n' % name)
-        elif isinstance(typedef.typ, (cy_ast.Typedef, cy_ast.FundamentalType)):
-            name = typedef.name
-            typ_name = typedef.typ.name
-            self.code.write_i('ctypedef %s %s\n\n' % (typ_name, name))
+        typ = typedef.typ
+        name = typedef.name
+
+        if isinstance(typ, (cy_ast.PointerType, cy_ast.ArrayType, 
+                            cy_ast.CvQualifiedType)):
+            typ, name = self.apply_modifier(typ, name)
+            
+        if isinstance(typ, (cy_ast.Struct, cy_ast.Enumeration, cy_ast.Union, 
+                            cy_ast.FundamentalType, cy_ast.Typedef)):
+            typ_name = typ.name
         else:
-            print 'Unhandled typedef type in extern renderer: `%s`' % typedef.typ
+            # XXX - handle function pointer typedefs
+            print 'Unhandled typedef type in extern renderer: `%s`' % typ
+            typ_name = UNDEFINED
+
+        self.code.write_i('ctypedef %s %s\n\n' % (typ_name, name))
 
     def visit_Struct(self, struct):
         name = struct.name
@@ -206,15 +202,21 @@ class ExternRenderer(object):
         self.code.write('\n')
 
     def visit_Field(self, field):
+        typ = field.typ
         name = field.name
-        if isinstance(field.typ, (cy_ast.Typedef, cy_ast.FundamentalType,
-                                  cy_ast.Struct, cy_ast.Enumeration)):
-            typ_name = field.typ.name
-        elif isinstance(field.typ, (cy_ast.PointerType, cy_ast.ArrayType)):
-            typ_name, name = self.apply_modifier(field.typ, name)
+        
+        if isinstance(typ, (cy_ast.PointerType, cy_ast.ArrayType,
+                            cy_ast.CvQualifiedType)):
+            typ, name = self.apply_modifier(typ, name)
+
+        if isinstance(typ, (cy_ast.Typedef, cy_ast.FundamentalType,
+                            cy_ast.Struct, cy_ast.Enumeration)):
+            typ_name = typ.name
         else:
-            print 'Unhandled field type in extern renderer: `%s`.' % field.typ
+            # XXX-handle function pointers
+            print 'Unhandled field type in extern renderer: `%s`.' % typ
             typ_name = UNDEFINED
+
         self.code.write_i('%s %s\n' % (typ_name, name))
    
     def visit_Enumeration(self, enum):
@@ -243,132 +245,101 @@ class ExternRenderer(object):
         name = function.name
         returns = function.returns
 
-        if isinstance(returns, (cy_ast.Typedef, cy_ast.FundamentalType, cy_ast.Enumeration)):
-            self.code.write_i('%s ' % returns.name)
-        elif isinstance(returns, cy_ast.PointerType):
-            res_name, name = self.apply_modifier(returns, name)
-            self.code.write_i('%s ' % res_name)
+        if isinstance(returns, (cy_ast.PointerType, cy_ast.ArrayType,
+                                cy_ast.CvQualifiedType)):
+            returns, name = self.apply_modifier(returns, name)
+
+        if isinstance(returns, (cy_ast.Typedef, cy_ast.FundamentalType, 
+                                cy_ast.Enumeration, cy_ast.Struct,
+                                cy_ast.Union)):
+            res_name = returns.name
         else:
+            # XXX-handle function pointer returns
             print 'undhandled return function type node: `%s`' % returns
-            self.code.write_i('%s\n\n' % UNDEFINED)
-            return 
+            res_name = UNDEFINED
         
-        self.code.write('%s(' % name)
+        self.code.write_i('%s %s(' % (res_name, name))
 
-        if len(function.arguments) == 0:
+        arguments = function.arguments
+        if len(arguments) == 0:
             self.code.write(')\n\n')
-            return
-
-        if len(function.arguments) == 1:
-            if isinstance(function.arguments[0].typ, cy_ast.FundamentalType):
-                if function.arguments[0].typ.name == 'void':
-                    self.code.write(')\n\n')
-                    return
-        
-        for arg in function.arguments[:-1]:
-            self.visit(arg)
-            self.code.write(', ')
-        self.visit(function.arguments[-1])
-
-        self.code.write(')\n\n')
+        else:
+            for arg in arguments[:-1]:
+                self.visit(arg)
+                self.code.write(', ')
+            self.visit(arguments[-1])
+            self.code.write(')\n\n')
 
     def visit_Argument(self, argument):
-        name = argument.name
         typ = argument.typ
+        name = argument.name
 
-        if isinstance(typ, cy_ast.CvQualifiedType):
-            typ = typ.typ
+        if isinstance(typ, (cy_ast.PointerType, cy_ast.ArrayType, 
+                            cy_ast.CvQualifiedType)):
+            typ, name = self.apply_modifier(typ, name)
 
         if isinstance(typ, (cy_ast.Typedef, cy_ast.FundamentalType, 
                             cy_ast.Enumeration, cy_ast.Struct)):
             typ_name = typ.name
-        elif isinstance(typ, (cy_ast.PointerType, cy_ast.ArrayType)):
-            typ_name, name = self.apply_modifier(typ, name)
         else:
+            # XXX-handle function pointer arguments
             print 'unhandled argument type node: `%s`' % typ
             typ_name = UNDEFINED
+        
+        # Cython doesn't use void
+        if typ_name != 'void':
+            if name is not None:
+                self.code.write('%s %s' % (typ_name, name))
+            else:
+                self.code.write('%s' % typ_name)
 
-        if name is not None:
-            self.code.write('%s %s' % (typ_name, name))
-        else:
-            self.code.write('%s' % typ_name)
-
-    def visit_PointerType(self, pointer):
-        self.visit(pointer.typ)
-
-    def visit_ArrayType(self, array):
-        self.visit(array.typ)
-       
-    def visit_Ignored(self, node):
-        pass
-
-    def visit_CvQualifiedType(self, node):
-        pass
-
-    def visit_FunctionType(self, node):
-        pass
-
-    def visit_OperatorFunction(self, node):
-        pass
-
-    def visit_Macro(self, node):
-        pass
-
-    def visit_Alias(self, node):
-        pass
-
-    def visit_File(self, node):
-        pass
-   
     def visit_Variable(self, var):
+        # XXX-This is incomplete
         name = var.name
         if isinstance(var.typ, (cy_ast.Typedef, cy_ast.FundamentalType)):
             self.code.write_i('%s %s\n\n' % (var.typ.name, name))
         else:
             print 'unhandled variable typ: `%s`' % var.typ
             self.code.write_i(UNDEFINED + '\n\n')
+  
+    def visit_Ignored(self, node):
+        pass
+   
+    def apply_modifier(self, typ, name):
+        """ Applies pointer and array modifiers to a name. The typ
+        node should be a PointerType, ArrayType, or CvQualifiedType. 
+        The return value is the underlying typ node which is pointed
+        to and the name modified by the appropriate declarations.
 
-    def apply_modifier(self, node, name):
+        """
+        # flatten the tree of pointers/arrays ignoring CvQualifiedType's
+        # (const and volatile)
         stack = []
-        typ = node
-        
-        if name is None:
-            name = ''
-
         while isinstance(typ, (cy_ast.PointerType, cy_ast.ArrayType,
                                cy_ast.CvQualifiedType)):
             if isinstance(typ, (cy_ast.PointerType, cy_ast.ArrayType)):
                 stack.append(typ)
             typ = typ.typ
         
-        if isinstance(typ, (cy_ast.Typedef, cy_ast.FundamentalType, 
-                            cy_ast.Struct)):
-            typ_name = typ.name
-        else:
-            print 'Unhandled typ node in apply_modifier: `%s`.' % typ
-            return UNDEFINED, UNDEFINED
+        if name is None:
+            name = ''
         
+        # As we iterate the stack, we apply parens when the type of the 
+        # stack node switches from Pointer to array or vice versa
         for i, node in enumerate(stack):
             if i > 0:
                 if not isinstance(node, type(stack[i - 1])):
                     name = '(' + name + ')'
-            
             if isinstance(node, cy_ast.PointerType):
-                try:
-                    name = '*' + name
-                except:
-                    import pdb; pdb.set_trace()
-            elif isinstance(node, cy_ast.ArrayType):
+                name = '*' + name
+            else:
                 max = node.max
                 if max is None:
                     dim = ''
                 else:
                     dim = str(max + 1)
                 name = name + ('[%s]' % dim)  
-            else:
-                print 'Unhandled node in apply_notifier: `%s`.' % node
-                return UNDEFINED, UNDEFINED
-
-        return typ_name, name
+     
+        return typ, name
 
 

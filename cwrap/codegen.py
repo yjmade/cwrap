@@ -4,8 +4,9 @@ import tempfile
 
 import parser 
 import renderers
-
+import transforms
     
+
 def _parse(header, include_dirs):
     """ Parse the given header file into and ast. The include
     dirs are passed along to gccxml.
@@ -17,11 +18,15 @@ def _parse(header, include_dirs):
 
     # buildup the gccxml command
     cmds = ['gccxml']
-    for inc_dir in include_dirs:
-        cmds.append('-I' + inc_dir)
+    if include_dirs:
+        inc = '-I'
+        for inc_dir in include_dirs[:-1]:
+            inc += (inc_dir + ':')
+        inc += include_dirs[-1]
+        cmds.append(inc)
     cmds.append(header.path)
     cmds.append('-fxml=%s' % xml_file.name)
-    
+   
     # we pipe stdout so the preprocessing doesn't dump to the 
     # shell. We really don't care about it.
     p = subprocess.Popen(cmds, stdout=subprocess.PIPE)
@@ -34,6 +39,13 @@ def _parse(header, include_dirs):
     return ast
 
 
+def _apply_transformations(items):
+    toplevel_ns = transforms.find_toplevel_ns(items)
+    transforms.sort_ns(toplevel_ns)
+    transforms.transform_nested_structs(items, toplevel_ns)
+    return toplevel_ns
+
+
 def _render_extern(ast, header, config):
     renderer = renderers.ExternRenderer()
     return renderer.render(ast, header.path, config)
@@ -43,8 +55,10 @@ def generate(config):
     save_dir = config.save_dir
     include_dirs = config.include_dirs
     for header in config.headers:
+        print 'Converting %s...' % header.path
         items = _parse(header, include_dirs)
-        extern_code = _render_extern(items, header, config)
+        toplevel_ns = _apply_transformations(items)
+        extern_code = _render_extern(toplevel_ns, header, config)
         extern_path = os.path.join(save_dir, header.pxd + '.pxd')
         with open(extern_path, 'wb') as f:
             f.write(extern_code)

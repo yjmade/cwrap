@@ -158,7 +158,6 @@ class GCCXMLParser(object):
     # These node types are ignored becuase we don't need anything
     # at all from them.
     visit_Class = lambda *args: None
-    visit_Namespace =  lambda *args: None
     visit_Base =  lambda *args: None
     visit_Ellipsis =  lambda *args: None
 
@@ -196,20 +195,27 @@ class GCCXMLParser(object):
     #--------------------------------------------------------------------------
     # Node element handlers
     #--------------------------------------------------------------------------
+    def visit_Namespace(self, attrs):
+        name = attrs['name']
+        members = attrs['members'].split()
+        return cy_ast.Namespace(name, members)
+    
     def visit_File(self, attrs):
         name = attrs['name']
         return cy_ast.File(name)
 
     def visit_Variable(self, attrs):
         name = attrs['name']
-        init = attrs.get('init', None)
         typ = attrs['type']
-        return cy_ast.Variable(name, typ, init)
+        context = attrs['context']
+        init = attrs.get('init', None)
+        return cy_ast.Variable(name, typ, context, init)
 
     def visit_Typedef(self, attrs):
         name = attrs['name']
         typ = attrs['type']
-        return cy_ast.Typedef(name, typ)
+        context = attrs['context']
+        return cy_ast.Typedef(name, typ, context)
    
     def visit_FundamentalType(self, attrs):
         name = attrs['name']
@@ -248,9 +254,10 @@ class GCCXMLParser(object):
     def visit_Function(self, attrs):
         name = attrs['name']
         returns = attrs['returns']
+        context = attrs['context']
         attributes = attrs.get('attributes', '').split()
         extern = attrs.get('extern')
-        return cy_ast.Function(name, returns, attributes, extern)
+        return cy_ast.Function(name, returns, context, attributes, extern)
 
     def visit_FunctionType(self, attrs):
         returns = attrs['returns']
@@ -292,9 +299,10 @@ class GCCXMLParser(object):
             name = MAKE_NAME(attrs['mangled'])
         bases = attrs.get('bases', '').split()
         members = attrs.get('members', '').split()
+        context = attrs['context']
         align = attrs['align']
         size = attrs.get('size')
-        return cy_ast.Struct(name, align, members, bases, size)
+        return cy_ast.Struct(name, align, members, context, bases, size)
     
     def visit_Union(self, attrs):
         name = attrs.get('name')
@@ -302,16 +310,18 @@ class GCCXMLParser(object):
             name = MAKE_NAME(attrs['mangled'])
         bases = attrs.get('bases', '').split()
         members = attrs.get('members', '').split()
+        context = attrs['context']
         align = attrs['align']
         size = attrs.get('size')
-        return cy_ast.Union(name, align, members, bases, size)
+        return cy_ast.Union(name, align, members, context, bases, size)
 
     def visit_Field(self, attrs):
         name = attrs['name']
         typ = attrs['type']
+        context = attrs['context']
         bits = attrs.get('bits', None)
         offset = attrs.get('offset')
-        return cy_ast.Field(name, typ, bits, offset)
+        return cy_ast.Field(name, typ, context, bits, offset)
 
     #--------------------------------------------------------------------------
     # Fixup handlers
@@ -321,15 +331,21 @@ class GCCXMLParser(object):
     # the replacement node from the storage, then do the swapout. There
     # must be a fixup handler (even if its pass-thru) for each node
     # handler that returns a node object.
+    
+    def _fixup_Namespace(self, ns):
+        for i, mbr in enumerate(ns.members):
+            ns.members[i] = self.all[mbr]
 
     def _fixup_File(self, f): 
         pass
     
     def _fixup_Variable(self, t):
         t.typ = self.all[t.typ]
-    
+        t.context = self.all[t.context]
+
     def _fixup_Typedef(self, t):
         t.typ = self.all[t.typ]
+        t.context = self.all[t.context]
 
     def _fixup_FundamentalType(self, t): 
         pass
@@ -347,8 +363,9 @@ class GCCXMLParser(object):
 
     def _fixup_Function(self, func):
         func.returns = self.all[func.returns]
+        func.context = self.all[func.context]
         func.fixup_argtypes(self.all)
-
+        
     def _fixup_FunctionType(self, func):
         func.returns = self.all[func.returns]
         func.fixup_argtypes(self.all)
@@ -365,13 +382,16 @@ class GCCXMLParser(object):
     def _fixup_Struct(self, s):
         s.members = [self.all[m] for m in s.members]
         s.bases = [self.all[b] for b in s.bases]
+        s.context = self.all[s.context]
 
     def _fixup_Union(self, u):
         u.members = [self.all[m] for m in u.members]
         u.bases = [self.all[b] for b in u.bases]
+        u.context = self.all[u.context]
 
     def _fixup_Field(self, f):
         f.typ = self.all[f.typ]
+        f.context = self.all[f.context]
 
     def _fixup_Macro(self, m):
         pass
@@ -455,7 +475,7 @@ class GCCXMLParser(object):
             location = getattr(node, 'location', None)
             if location is not None:
                 fil, line = location.split(':')
-                node.location = (self.all[fil].name, line)
+                node.location = (self.all[fil].name, int(line))
             method_name = '_fixup_' + node.__class__.__name__
             fixup_method = getattr(self, method_name, None)
             if fixup_method is not None:
@@ -466,25 +486,26 @@ class GCCXMLParser(object):
         # remove any nodes don't have handler methods
         for n in remove:
             del self.all[n]
+               
+        # sub out any #define'd aliases and collect all the nodes 
+        # we're interested in. The interesting nodes are not necessarily
+        # all nodes, but rather the ones that may need to be modified
+        # by the transformations applied later on.
+        interesting = (cy_ast.Typedef, cy_ast.Struct, cy_ast.Enumeration,
+                       cy_ast.Union, cy_ast.Function, cy_ast.Variable,
+                       cy_ast.Namespace, cy_ast.File)
 
-        # Now we can build the namespace composed only of the nodes
-        # in which we're interested.
-        interesting = (cy_ast.Typedef, cy_ast.Enumeration, cy_ast.EnumValue,
-                       cy_ast.Function, cy_ast.Struct, cy_ast.Union,
-                       cy_ast.Variable, cy_ast.Macro, cy_ast.Alias)
-        
         result = []
         namespace = {}
         for node in self.all.values():
             if not isinstance(node, interesting):
                 continue
-            result.append(node)
             name = getattr(node, 'name', None)
             if name is not None:
                 namespace[name] = node
-
+            result.append(node)
         self.get_aliases(self.cpp_data.get('aliases'), namespace)
-
+        
         return result
 
 

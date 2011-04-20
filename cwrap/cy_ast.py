@@ -15,10 +15,12 @@ class ASTNode(object):
 
 class Typedef(ASTNode):
 
-    def init(self, name, typ):
+    def init(self, name, typ, context):
         self.name = name
         self.typ = typ
-    
+        self.context = context
+        self.spoofed = False
+        
     def refs(self):
         return [self.typ]
     
@@ -64,9 +66,10 @@ class Ignored(ASTNode):
 
 class Field(ASTNode):
     
-    def init(self, name, typ, bits, offset):
+    def init(self, name, typ, context, bits, offset):
         self.name = name
         self.typ = typ
+        self.context = context
         self.bits = bits
         self.offset = offset
    
@@ -76,13 +79,15 @@ class Field(ASTNode):
 
 class Struct(ASTNode):
     
-    def init(self, name, align, members, bases, size):
+    def init(self, name, align, members, context, bases, size):
         self.name = name
         self.align = align
         self.members = members
+        self.context = context
         self.bases = bases
         self.size = size
-    
+        self.spoofed = False
+
     @property
     def opaque(self):
         return len(self.members) == 0
@@ -93,13 +98,15 @@ class Struct(ASTNode):
 
 class Union(ASTNode):
     
-    def init(self, name, align, members, bases, size):
+    def init(self, name, align, members, context, bases, size):
         self.name = name
         self.align = align
         self.members = members
+        self.context = context
         self.bases = bases
         self.size = size
-    
+        self.spoofed = False
+
     @property
     def opaque(self):
         return len(self.members) == 0
@@ -171,9 +178,10 @@ class Argument(ASTNode):
 
 class Function(ASTNode):
 
-    def init(self, name, returns, attributes, extern):
+    def init(self, name, returns, context, attributes, extern):
         self.name = name
         self.returns = returns
+        self.context = context
         self.attributes = attributes
         self.extern = extern
         self.arguments = []
@@ -241,12 +249,23 @@ class File(ASTNode):
     def init(self, name):
         self.name = name
     
-   
+  
+class Namespace(ASTNode):
+
+    def init(self, name, members):
+        self.name = name
+        self.members = members
+
+    def refs(self):
+        return self.members
+    
+
 class Variable(ASTNode):
 
-    def init(self, name, typ,  init):
+    def init(self, name, typ, context, init):
         self.name = name
         self.typ = typ
+        self.context = context
         self.init = init
 
     def refs(self):
