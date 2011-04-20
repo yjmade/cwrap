@@ -277,6 +277,9 @@ class ExternRenderer(object):
         if isinstance(typ, (cy_ast.PointerType, cy_ast.ArrayType, 
                             cy_ast.CvQualifiedType)):
             typ, name = self.apply_modifier(typ, name)
+            pointer = True
+        else:
+            pointer = False
 
         if isinstance(typ, (cy_ast.Typedef, cy_ast.FundamentalType, 
                             cy_ast.Enumeration, cy_ast.Struct)):
@@ -286,12 +289,13 @@ class ExternRenderer(object):
             print 'unhandled argument type node: `%s`' % typ
             typ_name = UNDEFINED
         
-        # Cython doesn't use void
-        if typ_name != 'void':
-            if name is not None:
-                self.code.write('%s %s' % (typ_name, name))
-            else:
-                self.code.write('%s' % typ_name)
+        # Cython doesn't use void arguments
+        if typ_name == 'void' and not pointer:
+            pass
+        elif name is not None:
+            self.code.write('%s %s' % (typ_name, name))
+        else:
+            self.code.write('%s' % typ_name)
 
     def visit_Variable(self, var):
         # XXX-This is incomplete
