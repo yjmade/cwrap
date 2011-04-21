@@ -19,7 +19,7 @@ class Typedef(ASTNode):
         self.name = name
         self.typ = typ
         self.context = context
-        self.spoofed = False
+        self.fake = False
         
     def refs(self):
         return [self.typ]
@@ -86,7 +86,7 @@ class Struct(ASTNode):
         self.context = context
         self.bases = bases
         self.size = size
-        self.spoofed = False
+        self.fake = False
 
     @property
     def opaque(self):
@@ -105,7 +105,7 @@ class Union(ASTNode):
         self.context = context
         self.bases = bases
         self.size = size
-        self.spoofed = False
+        self.fake = False
 
     @property
     def opaque(self):

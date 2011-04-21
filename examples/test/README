@@ -1,0 +1,5 @@
+In the current directory, run:
+
+$ python convert.py 
+
+to generate _test.pxd from _test.h 

@@ -13,8 +13,9 @@ CODE_HEADER = """\
 
 """
 
+MODIFIER_TYPES = (cy_ast.PointerType, cy_ast.ArrayType, cy_ast.CvQualifiedType)
 
-REFERENCE_TYPES = (cy_ast.PointerType, cy_ast.ArrayType, cy_ast.CvQualifiedType)
+REFERENCE_TYPES = (cy_ast.PointerType, cy_ast.ArrayType)
 
 NAMED_TYPES = (cy_ast.Struct, cy_ast.Enumeration, cy_ast.Union, 
                cy_ast.FundamentalType, cy_ast.Typedef) 
@@ -178,42 +179,17 @@ class ExternRenderer(object):
         typ = typedef.typ
         name = typedef.name
 
-        if isinstance(typ, REFERENCE_TYPES):
+        if isinstance(typ, MODIFIER_TYPES):
             typ, name = self.apply_modifier(typ, name)
             
         if isinstance(typ, NAMED_TYPES):
             typ_name = typ.name
             self.code.write_i('ctypedef %s %s\n\n' % (typ_name, name))
         elif isinstance(typ, cy_ast.FunctionType):
-            args = '('
-            arguments = typ.arguments
-            if len(arguments) == 0:
-                pass
-            else:
-                for arg in arguments[:-1]:
-                    if isinstance(arg, cy_ast.Ignored):
-                        continue
-                    arg_str = self.render_argument(arg)
-                    args += ('%s, ' % arg_str)
-                arg_str = self.render_argument(arguments[-1])
-                args += arg_str
-            args += ')'
-
+            args = '(' + self.render_arguments(typ.arguments) + ')'
             name = '(' + name + ')' + args
-                
-            returns = typ.returns
-            if isinstance(returns, REFERENCE_TYPES):
-                returns, name = self.apply_modifier(typ.returns, name)
-            
-            if isinstance(returns, NAMED_TYPES):
-                res_name = returns.name
-            else:
-                # XXX-handle function pointer returns
-                print 'undhandled return functiontype type node: `%s`' % returns
-                res_name = UNDEFINED
-        
+            res_name, name = self.render_returns(typ.returns, name)
             self.code.write_i('ctypedef %s %s\n\n' % (res_name, name))
-
         else:
             print 'Unhandled typedef type in extern renderer: `%s`' % typ
 
@@ -269,33 +245,9 @@ class ExternRenderer(object):
         self.code.write('\n')
 
     def visit_Function(self, function):
-        args = '('
-        arguments = function.arguments
-        if len(arguments) == 0:
-            pass
-        else:
-            for arg in arguments[:-1]:
-                if isinstance(arg, cy_ast.Ignored):
-                    continue
-                arg_str = self.render_argument(arg)
-                args += ('%s, ' % arg_str)
-            arg_str = self.render_argument(arguments[-1])
-            args += arg_str
-        args += ')'
-
+        args = '(' + self.render_arguments(function.arguments) + ')'
         name = function.name + args
-
-        returns = function.returns
-        if isinstance(returns, REFERENCE_TYPES):
-            returns, name = self.apply_modifier(returns, name)
-
-        if isinstance(returns, NAMED_TYPES):
-            res_name = returns.name
-        else:
-            # XXX-handle function pointer returns
-            print 'undhandled return function type node: `%s`' % returns
-            res_name = UNDEFINED
-        
+        res_name, name = self.render_returns(function.returns, name)
         self.code.write_i('%s %s\n\n' % (res_name, name))
 
     def visit_Variable(self, var):
@@ -322,7 +274,7 @@ class ExternRenderer(object):
         typ = field.typ
         name = field.name
         
-        if isinstance(typ, REFERENCE_TYPES):
+        if isinstance(typ, MODIFIER_TYPES):
             typ, name = self.apply_modifier(typ, name)
 
         if isinstance(typ, NAMED_TYPES):
@@ -333,33 +285,64 @@ class ExternRenderer(object):
             typ_name = UNDEFINED
         
         return typ_name, name
-   
-    def render_argument(self, argument):
-        typ = argument.typ
-        name = argument.name
+    
+    def render_returns(self, returns, name):
+        """ Renders a function return value from the given node. 
+        The name of the function must also be given *including the 
+        argument list* so that modifiers can be rendered properly
+        (i.e. pointers to arrays). The return value is a tuple of
+        return_name, name.
 
-        if isinstance(typ, REFERENCE_TYPES):
-            typ, name = self.apply_modifier(typ, name)
-            pointer = True
-        else:
-            pointer = False
+        """
+        if isinstance(returns, MODIFIER_TYPES):
+            returns, name = self.apply_modifier(returns, name)
 
-        if isinstance(typ, NAMED_TYPES):
-            typ_name = typ.name
+        if isinstance(returns, NAMED_TYPES):
+            res_name = returns.name
         else:
-            # XXX-handle function pointer arguments
-            print 'unhandled argument type node: `%s`' % typ
-            typ_name = UNDEFINED
+            # XXX-handle function pointer returns
+            print 'undhandled return function type node: `%s`' % returns
+            res_name = UNDEFINED
         
-        # Cython doesn't use void arguments
-        if typ_name == 'void' and not pointer:
-            res = ''
-        elif not name:
-            res ='%s' % typ_name
-        else:
-            res = '%s %s' % (typ_name, name)
+        return res_name, name
+
+    def render_arguments(self, arguments):
+        """ Renders an argument list from a given list of argument
+        nodes. The return value is a comma delimited string.
+
+        """
+        res_args = []
+        for arg in arguments:
+            if isinstance(arg, cy_ast.Ignored):
+                continue
+            
+            typ = arg.typ
+            name = arg.name
+
+            if isinstance(typ, MODIFIER_TYPES):
+                typ, name = self.apply_modifier(typ, name)
+                allow_void = True
+            else:
+                allow_void = False
+
+            if isinstance(typ, NAMED_TYPES):
+                typ_name = typ.name
+            else:
+                # XXX-handle function pointer arguments
+                print 'unhandled argument type node: `%s`' % typ
+                typ_name = UNDEFINED
+            
+            # Cython doesn't use void arguments
+            if typ_name == 'void' and not allow_void:
+                arg_str = ''
+            elif not name:
+                arg_str ='%s' % typ_name
+            else:
+                arg_str = '%s %s' % (typ_name, name)
+            
+            res_args.append(arg_str)
         
-        return res
+        return ', '.join(res_args)
     
     def apply_modifier(self, typ, name):
         """ Applies pointer and array modifiers to a name. The typ
@@ -371,8 +354,8 @@ class ExternRenderer(object):
         # flatten the tree of pointers/arrays ignoring CvQualifiedType's
         # (const and volatile)
         stack = []
-        while isinstance(typ, REFERENCE_TYPES):
-            if isinstance(typ, (cy_ast.PointerType, cy_ast.ArrayType)):
+        while isinstance(typ, MODIFIER_TYPES):
+            if isinstance(typ, REFERENCE_TYPES):
                 stack.append(typ)
             typ = typ.typ
         

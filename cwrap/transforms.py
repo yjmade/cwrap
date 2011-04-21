@@ -45,7 +45,7 @@ def transform_nested_structs(items, ns):
 
                 for nested in found:
                     # Create the necessary mangled names
-                    mangled_name = '__spoofed_' + node.name + '_' + nested.name
+                    mangled_name = '__fake_' + node.name + '_' + nested.name
                     mangled_typename = mangled_name + '_t'
                     
                     # Remove the nested definition from the node
@@ -80,9 +80,9 @@ def transform_nested_structs(items, ns):
                             if field.typ is nested:
                                 field.typ = typedef
                     
-                    # Finally, mark the the items as spoofed so they 
+                    # Finally, mark the the items as fake so they 
                     # won't later be rendered as extension types
-                    typedef.spoofed = True
-                    nested.spoofed = True
+                    typedef.fake = True
+                    nested.fake = True
 
 
