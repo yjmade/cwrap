@@ -858,7 +858,7 @@ class ASTRenderer(object):
         return '-'
 
     def render_Mult(self, mult):
-        return '+'
+        return '*'
 
     def render_Div(self, div):
         return '/'
