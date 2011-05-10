@@ -53,6 +53,20 @@ typedef struct _Astruct {
 } Astruct;
 
 
+// double nesting
+typedef struct {
+    union uInner {
+        float num;
+    } innerU;
+    struct medStruct {
+        double d;
+        struct innerStruct{
+            int n;
+        } whoa;
+    } totally;
+} OuterStruct;
+
+
 // function which returns pointer to int
 int *foo_bar(double t, Bar *barptr);
 
@@ -84,7 +98,7 @@ double *(*(*(*returns_func_ptr_nested(char*))(int, double))(int, long))(char*);
 
 
 // struct with function pointer field which takes int and returns pointer
-// to function which take float pointer and returns pointer to char
+// to function which takes float pointer and returns pointer to char
 struct CrazyField {
     char *(*(*crazy_ptr)(int))(float*);
 };

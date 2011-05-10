@@ -1,9 +1,5 @@
-import os
-
-from cwrap.config import Config, Header
-from cwrap.codegen import generate
-
+from cwrap.config import Config, File
 
 if __name__ == '__main__':
-    config = Config(headers=[Header('test.h')])
-    generate(config)
+    config = Config('gccxml', files=[File('test.h')])
+    config.generate()

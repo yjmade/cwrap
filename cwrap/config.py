@@ -1,41 +1,46 @@
 import os
 
+from cwrap import frontends
+from cwrap.backend import renderer
 
-class Header(object):
 
-    def __init__(self, path, pxd=None, pyx=None):
+class ASTContainer(object):
+
+    def __init__(self, module, filename):
+        self.module = module
+        self.filename = filename
+
+
+class File(object):
+
+    def __init__(self, path, **metadata):
         self.path = os.path.abspath(path)
-        self.header_name = os.path.split(self.path)[-1] 
-
-        mod_base = self.header_name.rstrip('.h')
-        
-        if pxd is None:
-            self.pxd = '_' + mod_base
-        else:
-            self.pxd = extern
-
-        if pyx is None:
-            self.pyx = mod_base
-        else:
-            self.pyx = pyx
+        self.metadata = metadata
 
 
 class Config(object):
     
-    def __init__(self, include_dirs=None, save_dir=None, headers=None):
-        self.include_dirs = include_dirs or []
+    def __init__(self, frontend, files, save_dir=None, **metadata):
+        self.frontend = frontend
+        self.files = files
         self.save_dir = save_dir or os.getcwd()
-        self.headers = headers or []
-        
-        self._header_map = {}
-        for header in self.headers:
-            self._header_map[header.path] = header
-    
-    def header(self, header_path):
-        return self._header_map[header_path]
+        self.metadata = metadata
 
-    def pxd_name(self, header_path):
-        return self._header_map[header_path].pxd
+    def generate(self):
+        frontend = frontends.get_frontend(self.frontend)
+        cw_asts = frontend.generate_asts(self)
+        ast_renderer = renderer.ASTRenderer()
+        for ast_container in cw_asts:
+            filename = ast_container.filename
+            save_path = os.path.join(self.save_dir, filename)
+            print 'Rendering %s' % save_path 
+            mod_node = ast_container.module
+            code = ast_renderer.render(mod_node)
+            try:
+                with open(save_path, 'wb') as f:
+                    f.write(code)
+            except IOError:
+                msg = 'Could not gain write access to %s' % save_path
+                raise IOError(msg)
 
-    def pyx_name(self, header_path):
-        return self._header_map[header_path].pyx
+

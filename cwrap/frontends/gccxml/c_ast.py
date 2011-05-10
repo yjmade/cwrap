@@ -1,53 +1,42 @@
 
 
-class ASTNode(object):
+class C_ASTNode(object):
 
     def __init__(self, *args, **kwargs):
-        self.init(*args, **kwargs)
         self.location = None
-
+        self.render_hints = {}
+        self.name = ''
+        self.init(*args, **kwargs)
+       
     def init(self, *args, **kwargs):
         pass
+  
     
-    def refs(self):
-        return []
-
-
-class Typedef(ASTNode):
+class Typedef(C_ASTNode):
 
     def init(self, name, typ, context):
         self.name = name
         self.typ = typ
         self.context = context
-        self.fake = False
-        
-    def refs(self):
-        return [self.typ]
-    
 
-class FundamentalType(ASTNode):
+
+class FundamentalType(C_ASTNode):
 
     def init(self, name, size, align):
         self.name = name
         self.size = size
         self.align = align
 
-    def refs(self):
-        return []
 
-
-class CvQualifiedType(ASTNode):
+class CvQualifiedType(C_ASTNode):
 
     def init(self, typ, const, volatile):
         self.typ = typ
         self.const = const
         self.volatile = volatile
 
-    def refs(self):
-        return [self.typ]
 
-
-class Ignored(ASTNode):
+class Ignored(C_ASTNode):
 
     def init(self, name):
         self.name = name
@@ -60,11 +49,8 @@ class Ignored(ASTNode):
     def add_argument(self, argument):
         self.arguments.append(argument)
 
-    def refs(self):
-        return self.arguments
 
-
-class Field(ASTNode):
+class Field(C_ASTNode):
     
     def init(self, name, typ, context, bits, offset):
         self.name = name
@@ -73,11 +59,8 @@ class Field(ASTNode):
         self.bits = bits
         self.offset = offset
    
-    def refs(self):
-        return [self.typ]
 
-
-class Struct(ASTNode):
+class Struct(C_ASTNode):
     
     def init(self, name, align, members, context, bases, size):
         self.name = name
@@ -86,17 +69,13 @@ class Struct(ASTNode):
         self.context = context
         self.bases = bases
         self.size = size
-        self.fake = False
 
     @property
     def opaque(self):
         return len(self.members) == 0
 
-    def refs(self):
-        return self.members
 
-
-class Union(ASTNode):
+class Union(C_ASTNode):
     
     def init(self, name, align, members, context, bases, size):
         self.name = name
@@ -105,27 +84,20 @@ class Union(ASTNode):
         self.context = context
         self.bases = bases
         self.size = size
-        self.fake = False
 
     @property
     def opaque(self):
         return len(self.members) == 0
 
-    def refs(self):
-        return self.members
 
-
-class EnumValue(ASTNode):
+class EnumValue(C_ASTNode):
 
     def init(self, name, value):
         self.name = name
         self.value = value
     
-    def refs(self):
-        return []
 
-
-class Enumeration(ASTNode):
+class Enumeration(C_ASTNode):
     
     def init(self, name, size, align):
         self.name = name
@@ -140,43 +112,35 @@ class Enumeration(ASTNode):
     def opaque(self):
         return len(self.values) == 1
     
-    def refs(self):
-        return self.values
 
-
-class PointerType(ASTNode):
+class PointerType(C_ASTNode):
 
     def init(self, typ, size, align):
         self.typ = typ
         self.size = size
         self.align = align
     
+    @property
     def refs(self):
         return [self.typ]
 
 
-class ArrayType(ASTNode):
+class ArrayType(C_ASTNode):
 
     def init(self, typ, min, max):
         self.typ = typ
         self.min = min
         self.max = max
     
-    def refs(self):
-        return [self.typ]
 
-
-class Argument(ASTNode):
+class Argument(C_ASTNode):
 
     def init(self, typ, name):
         self.typ = typ
         self.name = name
 
-    def refs(self):
-        return [self.typ]
 
-
-class Function(ASTNode):
+class Function(C_ASTNode):
 
     def init(self, name, returns, context, attributes, extern):
         self.name = name
@@ -193,11 +157,8 @@ class Function(ASTNode):
     def add_argument(self, argument):
         self.arguments.append(argument)
 
-    def refs(self):
-        return [self.returns] + self.arguments
 
-
-class FunctionType(ASTNode):
+class FunctionType(C_ASTNode):
 
     def init(self, returns, attributes):
         self.returns = returns
@@ -211,21 +172,15 @@ class FunctionType(ASTNode):
     def add_argument(self, argument):
         self.arguments.append(argument)
     
-    def refs(self):
-        return [self.returns] + self.arguments
 
-
-class OperatorFunction(ASTNode):
+class OperatorFunction(C_ASTNode):
 
     def init(self, name, returns):
         self.name = name
         self.returns = returns
 
-    def refs(self):
-        return [self.returns]
 
-
-class Macro(ASTNode):
+class Macro(C_ASTNode):
 
     def init(self, name, args, body):
         self.name = name
@@ -233,42 +188,33 @@ class Macro(ASTNode):
         self.body = body
 
 
-class Alias(ASTNode):
+class Alias(C_ASTNode):
 
     def init(self, name, value, typ=None):
         self.name = name
         self.value = value
         self.typ = typ
     
-    def refs(self):
-        return [self.typ]
 
-
-class File(ASTNode):
+class File(C_ASTNode):
 
     def init(self, name):
         self.name = name
     
-  
-class Namespace(ASTNode):
+
+class Namespace(C_ASTNode):
 
     def init(self, name, members):
         self.name = name
         self.members = members
 
-    def refs(self):
-        return self.members
-    
 
-class Variable(ASTNode):
+class Variable(C_ASTNode):
 
     def init(self, name, typ, context, init):
         self.name = name
         self.typ = typ
         self.context = context
         self.init = init
-
-    def refs(self):
-        return [self.typ]
 
 
