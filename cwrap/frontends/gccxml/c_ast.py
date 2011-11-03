@@ -175,9 +175,20 @@ class FunctionType(C_ASTNode):
 
 class OperatorFunction(C_ASTNode):
 
-    def init(self, name, returns):
+    def init(self, name, returns, context, attributes, extern):
         self.name = name
         self.returns = returns
+        self.context = context
+        self.attributes = attributes
+        self.extern = extern
+        self.arguments = []
+
+    def fixup_argtypes(self, typemap):
+        for arg in self.arguments:
+            arg.typ = typemap[arg.typ]
+            
+    def add_argument(self, argument):
+        self.arguments.append(argument)
 
 
 class Macro(C_ASTNode):

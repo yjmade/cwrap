@@ -154,11 +154,15 @@ class GCCXMLParser(object):
     visit_Constructor = visit_Ignored
     visit_Destructor = visit_Ignored
     visit_OperatorMethod  =  visit_Ignored
+    #visit_Class = visit_Ignored
+    visit_Base = visit_Ignored
+    visit_Converter = visit_Ignored
+    visit_MethodType = visit_Ignored
 
     # These node types are ignored becuase we don't need anything
     # at all from them.
-    visit_Class = lambda *args: None
-    visit_Base =  lambda *args: None
+    #visit_Class = lambda *args: None
+    #visit_Base =  lambda *args: None
     visit_Ellipsis =  lambda *args: None
 
     #--------------------------------------------------------------------------
@@ -241,6 +245,8 @@ class GCCXMLParser(object):
         max = attrs['max']
         if max == 'ffffffffffffffff':
             max = '-1'
+        if max == '': #ADDED gregor
+            max = '-1'
         min = int(min.rstrip('lu'))
         max = int(max.rstrip('lu'))
         return c_ast.ArrayType(typ, min, max)
@@ -267,7 +273,11 @@ class GCCXMLParser(object):
     def visit_OperatorFunction(self, attrs):
         name = attrs['name']
         returns = attrs['returns']
-        return c_ast.OperatorFunction(name, returns)
+        context = attrs['context']
+        attributes = attrs.get('attributes', '').split()
+        extern = attrs.get('extern')
+        #return c_ast.OperatorFunction(name, returns)
+        return c_ast.OperatorFunction(name, returns, context, attributes, extern)
 
     def visit_Argument(self, attrs):
         parent = self.context[-1]
@@ -323,6 +333,11 @@ class GCCXMLParser(object):
         offset = attrs.get('offset')
         return c_ast.Field(name, typ, context, bits, offset)
 
+
+    #visit_Class = visit_Struct
+    visit_Class = visit_Ignored
+
+
     #--------------------------------------------------------------------------
     # Fixup handlers
     #--------------------------------------------------------------------------
@@ -372,6 +387,8 @@ class GCCXMLParser(object):
         
     def _fixup_OperatorFunction(self, func):
         func.returns = self.all[func.returns]
+        func.context = self.all[func.context]
+        func.fixup_argtypes(self.all)
 
     def _fixup_Enumeration(self, e): 
         pass
