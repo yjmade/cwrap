@@ -1,3 +1,6 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
 #------------------------------------------------------------------------------
 # This file is adapted from ctypeslib.codegen.gccxmlparser
 #------------------------------------------------------------------------------
@@ -15,11 +18,13 @@ import clang, clang.cindex
 libpath, foo = os.path.split(clang.cindex.__file__)
 clang.cindex.Config.set_library_path(libpath)
 #put libclang.dylib(.dll, .dll) into clang package directory)
+
 from clang.cindex import CursorKind, TypeKind
 
-
 # A function show(level, *args) would have been simpler but less fun
-# and you'd need a separate parameter for the AST walkers if you want it to be exchangeable.
+# and you'd need a separate parameter for the AST walkers if you want
+# it to be exchangeable.
+
 class Level(int):
     '''represent currently visited level of a tree'''
     def show(self, *args):
@@ -103,29 +108,66 @@ class ClangParser(object):
 
         index = clang.cindex.Index.create()
         tu = index.parse(cfile)
+
+        for f in tu.diagnostics:
+            print_diag_info(d)
+        
         self.parse_element(tu.cursor)
 
-        #for f in tu.diagnostics:
-        #    print_diag_info(d)
-        
-        # for event, node in cElementTree.iterparse(xmlfile, events=('start', 'end')):
-        #     if event == 'start':
-        #         self.start_element(node.tag, dict(node.items()))
-        #     else:
-        #         if node.text:
-        #             self.visit_Characters(node.text)
-        #         self.end_element(node.tag)
-        #         node.clear()
+    simple_types = {TypeKind.VOID: 'void',
+                    #TypeKind.BOOL = TypeKind(3)
+                    TypeKind.CHAR_U: 'char',
+                    TypeKind.UCHAR: 'unsigned char',
+                    #TypeKind.CHAR16 = TypeKind(6)
+                    #TypeKind.CHAR32 = TypeKind(7)
+                    TypeKind.USHORT: 'unsigned short int',
+                    TypeKind.UINT: 'unsigned int',
+                    TypeKind.ULONG: 'unsigned long int',
+                    TypeKind.ULONGLONG: 'unsigned long long int',
+                    #TypeKind.UINT128: TypeKind(12)
+                    TypeKind.CHAR_S: 'signed char',
+                    TypeKind.SCHAR: 'signed char',
+                    #TypeKind.WCHAR: TypeKind(15)
+                    TypeKind.SHORT: 'short int',
+                    TypeKind.INT: 'int',
+                    TypeKind.LONG: 'long int',
+                    TypeKind.LONGLONG: 'long long int',
+                    #TypeKind.INT128: TypeKind(20)
+                    TypeKind.FLOAT: 'float',
+                    TypeKind.DOUBLE: 'double',
+                    TypeKind.LONGDOUBLE: 'long double',
+                    }
 
+    def type_to_c_ast_type(self, t):
+        kind = t.kind
+        if kind in self.simple_types:
+            return c_ast.FundamentalType(self.simple_types[kind], None, None)
+
+        elif kind is TypeKind.CONSTANTARRAY:
+            return c_ast.ArrayType(self.type_to_c_ast_type(t.element_type), 0, t.element_count-1)
+
+        elif kind is TypeKind.TYPEDEF:
+            return c_ast.FundamentalType(t.get_declaration().spelling, None, None)
+
+        elif kind is TypeKind.POINTER:
+            ptrtype = self.type_to_c_ast_type(t.get_pointee())
+            if ptrtype is not None:
+                return c_ast.PointerType(self.type_to_c_ast_type(t.get_pointee()), None, None)
+        
+        else:
+            typ = self.parse_element(t.get_declaration())
+            if typ is not None:
+                return typ
+            else:
+                print "don't know how to handle type", kind, t.get_declaration().kind
+        
+    
     def parse_element(self, cursor, level = Level()):
-        #wie start_element
         
-        #find and call the handler for this element
-        #TODO
-        #result = ...
-
-        if cursor.kind is CursorKind.ENUM_DECL:
-            result = self.visit_ENUM_DECL(cursor)
+        # Find and call visitor
+        mth = getattr(self, 'visit_' + cursor.kind.name, None)
+        if mth is not None:
+            result = mth(cursor)
         else:
             result = self.unhandled_element(cursor)
         
@@ -134,19 +176,22 @@ class ClangParser(object):
         # an id, so we create our own.
         if result is not None:
             location = cursor.location
-            if location is not None:
-                #result.location = location
+            if location.file is not None:
                 result.location = (location.file.name, location.line)
+            
             _id = cursor.hash #urs???
             if _id is not None:
                 self.all[_id] = result
-            else:
-                self.all[id(result)] = result
+            #else:
+            #    self.all[id(result)] = result
 
         # if this element has subelements, push it onto the context
         # since the next elements will be it's children.
         #if name in self.has_subelements: #TODO: c.type in [...]
-        if True: #cursor.type in [TypeKind.ENUM, TypeKind.TYPEDEF]:
+        if cursor.kind in [CursorKind.TRANSLATION_UNIT,
+                           #CursorKind.TYPEDEF_DECL,
+                           CursorKind.ENUM_DECL,
+                           ]:
             self.context.append(result)
         
             for c in cursor.get_children():
@@ -158,7 +203,14 @@ class ClangParser(object):
             self.context.pop()
         self.cdata = None
         
-        #print result
+        if result is not None:
+            level.show('name', result.name)
+        
+        print 'parse_element result', result
+        if result is not None:
+            print result.__dict__
+
+        return result
 
     
     def unhandled_element(self, cursor):
@@ -258,7 +310,15 @@ class ClangParser(object):
         typ = attrs['type']
         context = attrs['context']
         return c_ast.Typedef(name, typ, context)
-   
+
+    def visit_TYPEDEF_DECL(self, cursor):
+        name = cursor.spelling
+        #print 'visit TYPEDEF', cursor.kind
+        typ = self.type_to_c_ast_type(cursor.underlying_typedef_type)
+
+        if typ is not None:
+            return c_ast.Typedef(name, typ, None)
+        
     def visit_FundamentalType(self, attrs):
         name = attrs['name']
         if name == 'void':
@@ -341,10 +401,11 @@ class ClangParser(object):
         parent = self.context[-1]
         if parent is not None:
             name = cursor.spelling
-            value = cursor.enume_value
+            value = cursor.enum_value
             val = c_ast.EnumValue(name, value)
             parent.add_value(val)
-        
+        else:
+            print 'no parent for enum'
     
     def visit_EnumValue(self, attrs):
         parent = self.context[-1]
@@ -424,8 +485,10 @@ class ClangParser(object):
         t.context = self.all[t.context]
 
     def _fixup_Typedef(self, t):
-        t.typ = self.all[t.typ]
-        t.context = self.all[t.context]
+        #t.typ = self.all[t.typ]
+        #t.typ = 
+        #t.context = self.all[t.context]
+        pass
 
     def _fixup_FundamentalType(self, t): 
         pass
@@ -561,7 +624,7 @@ class ClangParser(object):
                 fixup_method(node)
             else:
                 remove.append(node)
-
+                print "remove node", node
         
         # # remove any nodes don't have handler methods
         # for n in remove:
@@ -593,5 +656,9 @@ def parse(cfile):
     # parse an XML file into a sequence of type descriptions
     parser = ClangParser()
     parser.parse(cfile)
+    
+    print 'all:'
+    print parser.all
+
     items = parser.get_result()
     return items
