@@ -165,6 +165,8 @@ class GCCXMLParser(object):
     #visit_Base =  lambda *args: None
     visit_Ellipsis =  lambda *args: None
 
+    visit_OffsetType = visit_Ignored
+
     #--------------------------------------------------------------------------
     # Revision Handler
     #--------------------------------------------------------------------------
@@ -313,6 +315,20 @@ class GCCXMLParser(object):
         align = attrs['align']
         size = attrs.get('size')
         return c_ast.Struct(name, align, members, context, bases, size)
+
+    def visit_Class(self, attrs):
+        name = attrs.get('name')
+        if name is None:
+            name = MAKE_NAME(attrs['mangled'])
+        bases = attrs.get('bases', '').split()
+        #fix 'protected:_12345'
+        bases = [b.replace('protected:','') for b in bases]
+        members = attrs.get('members', '').split()
+        context = attrs['context']
+        align = attrs['align']
+        size = attrs.get('size')
+        return c_ast.Struct(name, align, members, context, bases, size) #TODO: Class
+
     
     def visit_Union(self, attrs):
         name = attrs.get('name')
@@ -335,7 +351,7 @@ class GCCXMLParser(object):
 
 
     #visit_Class = visit_Struct
-    visit_Class = visit_Ignored
+    #visit_Class = visit_Ignored
 
 
     #--------------------------------------------------------------------------
