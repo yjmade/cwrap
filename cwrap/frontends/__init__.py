@@ -1,6 +1,7 @@
 import os
 import pkgutil
 
+import importlib
 
 # find all the names of the frontend packages
 _frontend_packages = set()
@@ -16,9 +17,10 @@ def get_frontend(name):
         raise ImportError(err_msg)
 
     try:
-        frontend = __import__('cwrap.frontends.' + name, fromlist=['cwrap'])
+        frontend = importlib.import_module('cwrap.frontends.'+name, '..cwrap')
     except ImportError, e:
-        raise ImportError(err_msg)
+        print 'Import Error', e
+        raise ImportError(err_msg + str(e))
     
     return frontend
 
