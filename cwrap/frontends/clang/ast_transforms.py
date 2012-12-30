@@ -252,11 +252,35 @@ class CAstTransformer(object):
         self.pxd_nodes.append(expr)
 
     def visit_Typedef(self, td):
-        name = td.name
+        name = td.name #typedef name
+        
         type_name = self.visit_translate(td.typ)
         expr = cw_ast.Expr(cw_ast.CName(type_name, name))
-        ctypedef = cw_ast.CTypedefDecl(expr)
-        self.pxd_nodes.append(ctypedef)
+        
+        #extended ctypedef of enums/struct/union:
+        if td.typ.__class__.__name__ in ('Enumeration',):
+            tag_name = td.typ.name
+            body = [self.visit_translate(value) for value in td.typ.values]
+            if not body:
+                body.append(cw_ast.Pass)
+            ext_expr = cw_ast.EnumDef(name, body) #TODO: analogue to visit_Enumeration for struct etc.
+            print 'tag_name:', repr(tag_name), 'name:', repr(name)
+        
+            ctypedef = cw_ast.CTypedefDecl(ext_expr)
+            if not tag_name:
+                self.pxd_nodes.pop() #drop previous enum #TODO: assert
+                self.pxd_nodes.append(ctypedef)
+            elif tag_name == name:
+                pass
+            else: #tag_name not empty and different
+                self.pxd_nodes.append(cw_ast.CTypedefDecl(expr)) #simple ctypedef
+        else:
+            ctypedef = cw_ast.CTypedefDecl(expr)
+            self.pxd_nodes.append(ctypedef)
+        
+
+        print "visit typedef:", repr(name), td.typ
+
 
     #--------------------------------------------------------------------------
     # render nodes

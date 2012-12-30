@@ -7,7 +7,6 @@
 
 #originally Thomas Heller, MIT license
 
-from xml.etree import cElementTree
 import os
 import sys
 import re
@@ -107,9 +106,13 @@ class ClangParser(object):
         """
 
         index = clang.cindex.Index.create()
-        tu = index.parse(cfile)
+        tu = index.parse(cfile,
+                         options = clang.cindex.TranslationUnit.PARSE_INCOMPLETE + \
+                             clang.cindex.TranslationUnit.PARSE_DETAILED_PROCESSING_RECORD + \
+                             clang.cindex.TranslationUnit.PARSE_SKIP_FUNCTION_BODIES
+                         )
 
-        for f in tu.diagnostics:
+        for d in tu.diagnostics:
             print_diag_info(d)
         
         self.parse_element(tu.cursor)
@@ -138,24 +141,38 @@ class ClangParser(object):
                     TypeKind.LONGDOUBLE: 'long double',
                     }
 
-    def type_to_c_ast_type(self, t):
+    def type_to_c_ast_type(self, t, level):
+        #convert clang type to c_ast type
+
         kind = t.kind
         if kind in self.simple_types:
-            return c_ast.FundamentalType(self.simple_types[kind], None, None)
+            return c_ast.FundamentalType(self.simple_types[kind])
 
         elif kind is TypeKind.CONSTANTARRAY:
-            return c_ast.ArrayType(self.type_to_c_ast_type(t.element_type), 0, t.element_count-1)
+            return c_ast.ArrayType(self.type_to_c_ast_type(t.element_type, level), 0, t.element_count-1)
 
         elif kind is TypeKind.TYPEDEF:
-            return c_ast.FundamentalType(t.get_declaration().spelling, None, None)
+            return c_ast.FundamentalType(t.get_declaration().spelling)
 
         elif kind is TypeKind.POINTER:
-            ptrtype = self.type_to_c_ast_type(t.get_pointee())
+            ptrtype = self.type_to_c_ast_type(t.get_pointee(), level)
             if ptrtype is not None:
-                return c_ast.PointerType(self.type_to_c_ast_type(t.get_pointee()), None, None)
+                return c_ast.PointerType(#self.type_to_c_ast_type(t.get_pointee()),
+                    ptrtype, None, None)
+
+        #elif kind is TypeKind.ENUM:
+
+        elif kind is TypeKind.UNEXPOSED:
+            return self.type_to_c_ast_type(t.get_canonical(), level)
         
         else:
-            typ = self.parse_element(t.get_declaration())
+            #typ = self.type_to_c_ast_type(self.parse_element(t.get_declaration())) #TODO: fails ????????
+            level.show('parse type declaration')
+            typ = self.parse_element(t.get_declaration(), level)
+            #print 'in type_to_c_ast_type:'
+            #print 'parsed type', typ
+            #print
+
             if typ is not None:
                 return typ
             else:
@@ -167,7 +184,7 @@ class ClangParser(object):
         # Find and call visitor
         mth = getattr(self, 'visit_' + cursor.kind.name, None)
         if mth is not None:
-            result = mth(cursor)
+            result = mth(cursor, level)
         else:
             result = self.unhandled_element(cursor)
         
@@ -185,12 +202,19 @@ class ClangParser(object):
             #else:
             #    self.all[id(result)] = result
 
+
+        if result is not None:
+            level.show('cursor:', cursor.kind, str(cursor.type.kind))
+            level.show('name', repr(result.name))
+            print
+        
+
         # if this element has subelements, push it onto the context
         # since the next elements will be it's children.
         #if name in self.has_subelements: #TODO: c.type in [...]
         if cursor.kind in [CursorKind.TRANSLATION_UNIT,
-                           #CursorKind.TYPEDEF_DECL,
                            CursorKind.ENUM_DECL,
+                           #CursorKind.TYPEDEF_DECL,                                                    
                            ]:
             self.context.append(result)
         
@@ -203,12 +227,11 @@ class ClangParser(object):
             self.context.pop()
         self.cdata = None
         
-        if result is not None:
-            level.show('name', result.name)
         
-        print 'parse_element result', result
-        if result is not None:
-            print result.__dict__
+        #level.show('parse_element result', result)
+        #if result is not None:
+        #    level.show(str(result.__dict__)) #.__dict__
+        #print
 
         return result
 
@@ -255,40 +278,74 @@ class ClangParser(object):
 
     visit_OffsetType = visit_Ignored
 
-    #--------------------------------------------------------------------------
-    # Revision Handler
-    #--------------------------------------------------------------------------
-    def visit_GCC_XML(self, attrs):
-        """ Handles the versioning info from the gccxml version.
+    # #--------------------------------------------------------------------------
+    # # Revision Handler
+    # #--------------------------------------------------------------------------
+    # def visit_GCC_XML(self, attrs):
+    #     """ Handles the versioning info from the gccxml version.
 
-        """
-        rev = attrs['cvs_revision']
-        self.cvs_revision = tuple(map(int, rev.split('.')))
+    #     """
+    #     rev = attrs['cvs_revision']
+    #     self.cvs_revision = tuple(map(int, rev.split('.')))
     
-    #--------------------------------------------------------------------------
-    # Text handlers
-    #--------------------------------------------------------------------------
-    def visit_Characters(self, content):
-        """ The character handler which is called after each xml 
-        element has been processed.
+    # #--------------------------------------------------------------------------
+    # # Text handlers
+    # #--------------------------------------------------------------------------
+    # def visit_Characters(self, content):
+    #     """ The character handler which is called after each xml 
+    #     element has been processed.
 
-        """
-        if self.cdata is not None:
-            self.cdata.append(content)
+    #     """
+    #     if self.cdata is not None:
+    #         self.cdata.append(content)
     
-    def visit_CPP_DUMP(self, attrs):
-        """ Gathers preprocessor elements like macros and defines.
+    # def visit_CPP_DUMP(self, attrs):
+    #     """ Gathers preprocessor elements like macros and defines.
 
-        """
-        # Insert a new list for each named section into self.cpp_data,
-        # and point self.cdata to it.  self.cdata will be set to None
-        # again at the end of each section.
-        name = attrs['name']
-        self.cpp_data[name] = self.cdata = []
+    #     """
+    #     # Insert a new list for each named section into self.cpp_data,
+    #     # and point self.cdata to it.  self.cdata will be set to None
+    #     # again at the end of each section.
+    #     name = attrs['name']
+    #     self.cpp_data[name] = self.cdata = []
  
     #--------------------------------------------------------------------------
     # Node element handlers
     #--------------------------------------------------------------------------
+    def visit_TYPEDEF_DECL(self, cursor, level):
+        name = cursor.spelling
+        c_ast_type = self.type_to_c_ast_type(cursor.underlying_typedef_type, level)
+
+        if c_ast_type is not None:
+            level.show('c_ast_type', c_ast_type)
+            return c_ast.Typedef(name, c_ast_type, None)
+
+    def visit_ENUM_DECL(self, cursor, level):
+        name = cursor.spelling
+        return c_ast.Enumeration(name, None, None)
+
+    def visit_ENUM_CONSTANT_DECL(self, cursor, level):
+        parent = self.context[-1]
+        if parent is not None:
+            name = cursor.spelling
+            value = cursor.enum_value
+            val = c_ast.EnumValue(name, value)
+            parent.add_value(val)
+            #level.show('enum constant:', val)
+            return val
+        else:
+            print 'no parent for enum'
+        
+
+        
+
+
+
+
+
+
+
+
     def visit_Namespace(self, attrs):
         name = attrs['name']
         members = attrs['members'].split()
@@ -304,29 +361,6 @@ class ClangParser(object):
         context = attrs['context']
         init = attrs.get('init', None)
         return c_ast.Variable(name, typ, context, init)
-
-    def visit_Typedef(self, attrs):
-        name = attrs['name']
-        typ = attrs['type']
-        context = attrs['context']
-        return c_ast.Typedef(name, typ, context)
-
-    def visit_TYPEDEF_DECL(self, cursor):
-        name = cursor.spelling
-        #print 'visit TYPEDEF', cursor.kind
-        typ = self.type_to_c_ast_type(cursor.underlying_typedef_type)
-
-        if typ is not None:
-            return c_ast.Typedef(name, typ, None)
-        
-    def visit_FundamentalType(self, attrs):
-        name = attrs['name']
-        if name == 'void':
-            size = ''
-        else:
-            size = attrs['size']
-        align = attrs['align']
-        return c_ast.FundamentalType(name, size, align)
 
     def visit_PointerType(self, attrs):
         typ = attrs['type']
@@ -393,19 +427,6 @@ class ClangParser(object):
         align = attrs['align']
         return c_ast.Enumeration(name, size, align)
 
-    def visit_ENUM_DECL(self, cursor):
-        name = cursor.spelling
-        return c_ast.Enumeration(name, None, None)
-
-    def visit_ENUM_CONSTANT_DECL(self, cursor):
-        parent = self.context[-1]
-        if parent is not None:
-            name = cursor.spelling
-            value = cursor.enum_value
-            val = c_ast.EnumValue(name, value)
-            parent.add_value(val)
-        else:
-            print 'no parent for enum'
     
     def visit_EnumValue(self, attrs):
         parent = self.context[-1]
@@ -486,7 +507,6 @@ class ClangParser(object):
 
     def _fixup_Typedef(self, t):
         #t.typ = self.all[t.typ]
-        #t.typ = 
         #t.context = self.all[t.context]
         pass
 

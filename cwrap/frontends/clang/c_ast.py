@@ -1,10 +1,8 @@
-
-
 class C_ASTNode(object):
 
     def __init__(self, *args, **kwargs):
         self.location = None
-        self.render_hints = {}
+        #self.render_hints = {}
         self.name = ''
         self.init(*args, **kwargs)
        
@@ -17,15 +15,15 @@ class Typedef(C_ASTNode):
     def init(self, name, typ, context):
         self.name = name
         self.typ = typ
-        self.context = context
+        #self.context = context
 
 
 class FundamentalType(C_ASTNode):
 
-    def init(self, name, size, align):
+    def init(self, name): #, size, align):
         self.name = name
-        self.size = size
-        self.align = align
+        #self.size = size
+        #self.align = align
 
 
 class CvQualifiedType(C_ASTNode):
