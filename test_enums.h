@@ -26,7 +26,7 @@ enum E0
 
 typedef long long LLong;
 
-//typename only
+//typename only, no tag name
 typedef enum
 {
   E1_ONE,
@@ -36,7 +36,7 @@ typedef enum
 /* ENUM_DECL ''
    TYPEDEF_DECL 'E1_type', unnamed type declaration
 */
-//FAIL: cdef enum: ... + ctypedef  E1_type
+//FAIL: cdef enum: ... + ctypedef enum E1_type:
 //FIX?: combine ctypedef with previous enum, remove enum (if empty first argument ctypedef)
 
 

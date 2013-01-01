@@ -13,17 +13,17 @@ import re
 
 import c_ast
 
+#TODO: find better way to locate libclang library
 import clang, clang.cindex
 libpath, foo = os.path.split(clang.cindex.__file__)
 clang.cindex.Config.set_library_path(libpath)
-#put libclang.dylib(.dll, .dll) into clang package directory)
+#put libclang.dylib(.so, .dll) into clang package directory)
 
 from clang.cindex import CursorKind, TypeKind
 
 # A function show(level, *args) would have been simpler but less fun
 # and you'd need a separate parameter for the AST walkers if you want
 # it to be exchangeable.
-
 class Level(int):
     '''represent currently visited level of a tree'''
     def show(self, *args):
@@ -86,6 +86,9 @@ class ClangParser(object):
         # hook up dependent nodes.
         self.all = {}
 
+        # collected nodes in parse order
+        self.nodes = []
+
         # XXX - what does this do?
         self.cpp_data = {}
 
@@ -117,6 +120,9 @@ class ClangParser(object):
         
         self.parse_element(tu.cursor)
 
+
+
+
     simple_types = {TypeKind.VOID: 'void',
                     #TypeKind.BOOL = TypeKind(3)
                     TypeKind.CHAR_U: 'char',
@@ -143,32 +149,36 @@ class ClangParser(object):
 
     def type_to_c_ast_type(self, t, level):
         #convert clang type to c_ast type
+        level.show( 'in type to c_ast:', 'kind', t.kind)
 
         kind = t.kind
         if kind in self.simple_types:
             return c_ast.FundamentalType(self.simple_types[kind])
 
         elif kind is TypeKind.CONSTANTARRAY:
-            return c_ast.ArrayType(self.type_to_c_ast_type(t.element_type, level), 0, t.element_count-1)
+            return c_ast.ArrayType(self.type_to_c_ast_type(t.element_type, level+1), 0, t.element_count-1)
 
         elif kind is TypeKind.TYPEDEF:
             return c_ast.FundamentalType(t.get_declaration().spelling)
 
         elif kind is TypeKind.POINTER:
-            ptrtype = self.type_to_c_ast_type(t.get_pointee(), level)
+            ptrtype = self.type_to_c_ast_type(t.get_pointee(), level+1)
             if ptrtype is not None:
                 return c_ast.PointerType(#self.type_to_c_ast_type(t.get_pointee()),
                     ptrtype, None, None)
 
         #elif kind is TypeKind.ENUM:
+        #TODO: special handle cases
 
         elif kind is TypeKind.UNEXPOSED:
-            return self.type_to_c_ast_type(t.get_canonical(), level)
+            return self.type_to_c_ast_type(t.get_canonical(), level+1)
         
         else:
             #typ = self.type_to_c_ast_type(self.parse_element(t.get_declaration())) #TODO: fails ????????
-            level.show('parse type declaration')
-            typ = self.parse_element(t.get_declaration(), level)
+            level.show('do not know to handle type kind, parse type declaration')
+            #typ = self.parse_element(t.get_declaration(), level) #TODO: should have already been parsed!!!!
+            typ = self.all.get(t.get_declaration().hash)
+
             #print 'in type_to_c_ast_type:'
             #print 'parsed type', typ
             #print
@@ -176,9 +186,11 @@ class ClangParser(object):
             if typ is not None:
                 return typ
             else:
-                print "don't know how to handle type", kind, t.get_declaration().kind
+                level.show("can't find declaration for type", kind, t.get_declaration().kind)
+                print
         
     
+
     def parse_element(self, cursor, level = Level()):
         
         # Find and call visitor
@@ -196,13 +208,16 @@ class ClangParser(object):
             if location.file is not None:
                 result.location = (location.file.name, location.line)
             
-            _id = cursor.hash #urs???
+            self.nodes.append(result)
+            
+            #TODO: remove, not necessary???
+            _id = cursor.hash
             if _id is not None:
                 self.all[_id] = result
             #else:
             #    self.all[id(result)] = result
 
-
+        #debug output
         if result is not None:
             level.show('cursor:', cursor.kind, str(cursor.type.kind))
             level.show('name', repr(result.name))
@@ -313,12 +328,11 @@ class ClangParser(object):
     # Node element handlers
     #--------------------------------------------------------------------------
     def visit_TYPEDEF_DECL(self, cursor, level):
-        name = cursor.spelling
         c_ast_type = self.type_to_c_ast_type(cursor.underlying_typedef_type, level)
 
         if c_ast_type is not None:
             level.show('c_ast_type', c_ast_type)
-            return c_ast.Typedef(name, c_ast_type, None)
+            return c_ast.Typedef(cursor.spelling, c_ast_type, None)
 
     def visit_ENUM_DECL(self, cursor, level):
         name = cursor.spelling
@@ -660,7 +674,8 @@ class ClangParser(object):
 
         result = []
         namespace = {}
-        for node in self.all.values():
+        #for node in self.all.values():
+        for node in self.nodes: #traverse results in parse order
             if not isinstance(node, interesting):
                 continue
             name = getattr(node, 'name', None)
@@ -678,7 +693,14 @@ def parse(cfile):
     parser.parse(cfile)
     
     print 'all:'
-    print parser.all
+    for a in parser.all:
+        print hex(a), parser.all[a].name
+    print
 
     items = parser.get_result()
+
+    print 'in clang_parser.py/parse(), items:'
+    for i in items:
+        print "%20s: %s"%(i.__class__.__name__, i.name)
+
     return items

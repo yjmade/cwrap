@@ -37,16 +37,16 @@ def generate_asts(config):
 
         # generate the c_ast for the header 
         include_dirs = config.metadata.get('include_dirs', [])
+        
         print 'Parsing %s' % path
         ast_items = gen_c_ast(path, include_dirs) 
 
-
+        print 'in __init__/generate_asts()'
         print 'file parsed'
         print 'AST:', ast_items
         for item in ast_items:
-            print item.__class__, item.name
+            print item.__class__.__name__, item.name
         
-
         # Apply the transformations to the ast items 
         trans_items = transforms.apply_c_ast_transformations(ast_items)
         

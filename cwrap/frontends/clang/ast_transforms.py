@@ -143,7 +143,8 @@ def apply_c_ast_transformations(c_ast_items):
 
     """
     items = find_toplevel_items(c_ast_items)
-    items = sort_toplevel_items(items)
+    #TODO: correct order?? parser order or line number order?
+    #items = sort_toplevel_items(items)
     items = flatten_nested_containers(items)
     items = filter_ignored(items)
     return items
@@ -177,7 +178,7 @@ class CAstTransformer(object):
             header_name = container.header_name
 
             for item in items:
-                # only transform items for this header (not #inlcude'd
+                # only transform items for this header (not #include'd
                 # or other __builtin__ stuff)
                 if item.location is not None:
                     if not item.location[0].endswith(header_name):
@@ -268,7 +269,8 @@ class CAstTransformer(object):
         
             ctypedef = cw_ast.CTypedefDecl(ext_expr)
             if not tag_name:
-                self.pxd_nodes.pop() #drop previous enum #TODO: assert
+                #removed = self.pxd_nodes.pop() #drop previous enum #TODO: assert, TODO: order might be scrambled!!
+                #print "in visit_Typedef: removed", type(removed) 
                 self.pxd_nodes.append(ctypedef)
             elif tag_name == name:
                 pass
