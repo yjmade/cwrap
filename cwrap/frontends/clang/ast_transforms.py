@@ -144,7 +144,7 @@ def apply_c_ast_transformations(c_ast_items):
     """
     items = find_toplevel_items(c_ast_items)
     #TODO: correct order?? parser order or line number order?
-    #items = sort_toplevel_items(items)
+    items = sort_toplevel_items(items)
     items = flatten_nested_containers(items)
     items = filter_ignored(items)
     return items

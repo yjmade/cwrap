@@ -86,8 +86,8 @@ class ClangParser(object):
         # hook up dependent nodes.
         self.all = {}
 
-        # collected nodes in parse order
-        self.nodes = []
+        ## collected nodes in parse order
+        #self.nodes = []
 
         # XXX - what does this do?
         self.cpp_data = {}
@@ -148,35 +148,41 @@ class ClangParser(object):
                     }
 
     def type_to_c_ast_type(self, t, level):
-        #convert clang type to c_ast type
+        #convert clang type to c_ast type, return c_ast and hash value for corresponding cursor (or None)
         level.show( 'in type to c_ast:', 'kind', t.kind)
 
         kind = t.kind
         if kind in self.simple_types:
-            return c_ast.FundamentalType(self.simple_types[kind])
+            return c_ast.FundamentalType(self.simple_types[kind]), None
 
         elif kind is TypeKind.CONSTANTARRAY:
-            return c_ast.ArrayType(self.type_to_c_ast_type(t.element_type, level+1), 0, t.element_count-1)
+            a, foo = self.type_to_c_ast_type(t.element_type, level+1)
+            return c_ast.ArrayType(a, 0, t.element_count-1), None
 
         elif kind is TypeKind.TYPEDEF:
-            return c_ast.FundamentalType(t.get_declaration().spelling)
+            return c_ast.FundamentalType(t.get_declaration().spelling), None #t.get_declaration().hash
 
         elif kind is TypeKind.POINTER:
-            ptrtype = self.type_to_c_ast_type(t.get_pointee(), level+1)
+            ptrtype, foo = self.type_to_c_ast_type(t.get_pointee(), level+1)
             if ptrtype is not None:
                 return c_ast.PointerType(#self.type_to_c_ast_type(t.get_pointee()),
-                    ptrtype, None, None)
+                    ptrtype, None, None), None
 
-        #elif kind is TypeKind.ENUM:
-        #TODO: special handle cases
-
+        elif kind is TypeKind.ENUM:
+            #see if declaration already parsed
+            typ = self.all.get(t.get_declaration().hash)
+            if typ is not None:
+                return typ, t.get_declaration().hash
+            else:
+                level.show('enum declaration not yet parsed')
+                typ = self.parse_element(t.get_declaration(), level) #TODO ????
+                return typ, t.get_declaratio().hash
+                
         elif kind is TypeKind.UNEXPOSED:
             return self.type_to_c_ast_type(t.get_canonical(), level+1)
         
         else:
-            #typ = self.type_to_c_ast_type(self.parse_element(t.get_declaration())) #TODO: fails ????????
             level.show('do not know to handle type kind, parse type declaration')
-            #typ = self.parse_element(t.get_declaration(), level) #TODO: should have already been parsed!!!!
             typ = self.all.get(t.get_declaration().hash)
 
             #print 'in type_to_c_ast_type:'
@@ -184,10 +190,11 @@ class ClangParser(object):
             #print
 
             if typ is not None:
-                return typ
+                return typ, t.get_declaration().hash
             else:
                 level.show("can't find declaration for type", kind, t.get_declaration().kind)
                 print
+                return None, None
         
     
 
@@ -208,7 +215,7 @@ class ClangParser(object):
             if location.file is not None:
                 result.location = (location.file.name, location.line)
             
-            self.nodes.append(result)
+            #self.nodes.append(result)
             
             #TODO: remove, not necessary???
             _id = cursor.hash
@@ -328,10 +335,19 @@ class ClangParser(object):
     # Node element handlers
     #--------------------------------------------------------------------------
     def visit_TYPEDEF_DECL(self, cursor, level):
-        c_ast_type = self.type_to_c_ast_type(cursor.underlying_typedef_type, level)
-
+        c_ast_type, id_ = self.type_to_c_ast_type(cursor.underlying_typedef_type, level)
+        
         if c_ast_type is not None:
-            level.show('c_ast_type', c_ast_type)
+            level.show('in visit_TYPEDEF_DECL, c_ast_type =', c_ast_type.__class__.__name__, 'name =', repr(c_ast_type.name))
+            #special handling of typedef enum
+            if type(c_ast_type) in (c_ast.Enumeration,):
+                if not c_ast_type.name: #unnamed enum -> remove enum declaration from 
+                    level.show('remove enum declaration', c_ast_type)
+                    del self.all[id_]
+                elif c_ast_type.name == cursor.spelling: #enum tagname == typename: no typedef
+                    return
+                               
+            
             return c_ast.Typedef(cursor.spelling, c_ast_type, None)
 
     def visit_ENUM_DECL(self, cursor, level):
@@ -674,8 +690,8 @@ class ClangParser(object):
 
         result = []
         namespace = {}
-        #for node in self.all.values():
-        for node in self.nodes: #traverse results in parse order
+        for node in self.all.values():
+        #for node in self.nodes: #traverse results in parse order
             if not isinstance(node, interesting):
                 continue
             name = getattr(node, 'name', None)
