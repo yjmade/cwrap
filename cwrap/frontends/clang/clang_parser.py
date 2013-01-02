@@ -182,7 +182,7 @@ class ClangParser(object):
             return self.type_to_c_ast_type(t.get_canonical(), level+1)
         
         else:
-            level.show('do not know to handle type kind, parse type declaration')
+            level.show('do not know to handle type kind, search for declaration')
             typ = self.all.get(t.get_declaration().hash)
 
             #print 'in type_to_c_ast_type:'
@@ -192,10 +192,13 @@ class ClangParser(object):
             if typ is not None:
                 return typ, t.get_declaration().hash
             else:
-                level.show("can't find declaration for type", kind, t.get_declaration().kind)
-                print
-                #return None, None #gives 'NoneType' object is not iterable
-                return c_ast.FundamentalType('unknown_type'), None #TODO: fixme
+                level.show("can't find declaration for type, parse type declaration", kind, t.get_declaration().kind)
+                #print
+                typ = self.parse_element(t.get_declaration(), level+1)
+                if typ is not None:
+                    return typ, t.get_declaration().hash
+                else:
+                    return c_ast.FundamentalType('unknown_type'), None #TODO: fixme
         
     
 
@@ -206,7 +209,7 @@ class ClangParser(object):
         if mth is not None:
             result = mth(cursor, level)
         else:
-            result = self.unhandled_element(cursor)
+            result = self.unhandled_element(cursor, level)
         
         # Record the result and register the the id, which is
         # used in the _fixup_* methods. Some elements don't have
@@ -237,7 +240,8 @@ class ClangParser(object):
         #if name in self.has_subelements: #TODO: c.type in [...]
         if cursor.kind in [CursorKind.TRANSLATION_UNIT,
                            CursorKind.ENUM_DECL,
-                           #CursorKind.TYPEDEF_DECL,                                                    
+                           CursorKind.STRUCT_DECL,
+                           CursorKind.UNION_DECL,
                            ]:
             self.context.append(result)
         
@@ -259,12 +263,14 @@ class ClangParser(object):
         return result
 
     
-    def unhandled_element(self, cursor):
+    def unhandled_element(self, cursor, level):
         """ Handler for element nodes where a real handler is not
          found.
 
         """
         #print 'Unhandled element `%s`.' % cursor.displayname
+        level.show('unhandled element', repr(cursor.spelling), cursor.kind)
+        print
 
     #--------------------------------------------------------------------------
     # Ignored elements and do-nothing handlers
@@ -341,16 +347,34 @@ class ClangParser(object):
         if c_ast_type is not None:
             level.show('in visit_TYPEDEF_DECL, c_ast_type =', c_ast_type.__class__.__name__, 'name =', repr(c_ast_type.name))
             #special handling of typedef enum
-            if type(c_ast_type) in (c_ast.Enumeration,):
+            if type(c_ast_type) in (c_ast.Enumeration, c_ast.Union, c_ast.Struct):
                 if not c_ast_type.name: #unnamed enum -> remove enum declaration from 
                     level.show('remove enum declaration', c_ast_type)
                     del self.all[id_]
-                elif c_ast_type.name == cursor.spelling: #enum tagname == typename: no typedef
+                elif c_ast_type.name == cursor.spelling: #enum tagname == typename: no typedef, do nothing
                     return
-                               
             
             return c_ast.Typedef(cursor.spelling, c_ast_type, None)
+        
+    def visit_STRUCT_DECL(self, cursor, level):
+        name = cursor.spelling
+        return c_ast.Struct(name, align = None, members = [], context = None, bases = None, size = None)
 
+    def visit_UNION_DECL(self, cursor, level):
+        name = cursor.spelling
+        return c_ast.Union(name)
+
+    def visit_FIELD_DECL(self, cursor, level):
+        parent = self.context[-1]
+        if parent is None:
+            level.show('no parent for field declaration')
+        else:
+            name = cursor.spelling
+            c_ast_type, id_ = self.type_to_c_ast_type(cursor.type, level)
+            member = c_ast.Field(name, c_ast_type, None, None, None)
+            parent.add_member(member)
+            #return member
+            
     def visit_ENUM_DECL(self, cursor, level):
         name = cursor.spelling
         return c_ast.Enumeration(name, None, None)
@@ -363,7 +387,7 @@ class ClangParser(object):
             val = c_ast.EnumValue(name, value)
             parent.add_value(val)
             #level.show('enum constant:', val)
-            return val
+            return val #TODO necessary ????
         else:
             print 'no parent for enum'
         
@@ -576,18 +600,21 @@ class ClangParser(object):
         pass
     
     def _fixup_Struct(self, s):
-        s.members = [self.all[m] for m in s.members]
-        s.bases = [self.all[b] for b in s.bases]
-        s.context = self.all[s.context]
+        #s.members = [self.all[m] for m in s.members]
+        #s.bases = [self.all[b] for b in s.bases]
+        #s.context = self.all[s.context]
+        pass
 
     def _fixup_Union(self, u):
-        u.members = [self.all[m] for m in u.members]
-        u.bases = [self.all[b] for b in u.bases]
-        u.context = self.all[u.context]
+        #u.members = [self.all[m] for m in u.members]
+        #u.bases = [self.all[b] for b in u.bases]
+        #u.context = self.all[u.context]
+        pass
 
     def _fixup_Field(self, f):
-        f.typ = self.all[f.typ]
-        f.context = self.all[f.context]
+        #f.typ = self.all[f.typ]
+        #f.context = self.all[f.context]
+        pass
 
     def _fixup_Macro(self, m):
         pass

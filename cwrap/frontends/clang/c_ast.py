@@ -60,32 +60,39 @@ class Field(C_ASTNode):
 
 class Struct(C_ASTNode):
     
-    def init(self, name, align, members, context, bases, size):
+    def init(self, name, align = None, members = [], context = None, bases = None, size = None):
         self.name = name
-        self.align = align
+        #self.align = align
         self.members = members
         self.context = context
-        self.bases = bases
-        self.size = size
+        #self.bases = bases
+        #self.size = size
 
     @property
     def opaque(self):
         return len(self.members) == 0
+
+    def add_member(self, member):
+        self.members.append(member)
+
 
 
 class Union(C_ASTNode):
     
-    def init(self, name, align, members, context, bases, size):
+    def init(self, name, align = None, members = [], context = None, bases = None, size = None):
         self.name = name
-        self.align = align
+        #self.align = align
         self.members = members
         self.context = context
-        self.bases = bases
-        self.size = size
+        #self.bases = bases
+        #self.size = size
 
     @property
     def opaque(self):
         return len(self.members) == 0
+
+    def add_member(self, member):
+        self.members.append(member)
 
 
 class EnumValue(C_ASTNode):

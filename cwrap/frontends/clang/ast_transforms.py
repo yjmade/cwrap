@@ -144,7 +144,7 @@ def apply_c_ast_transformations(c_ast_items):
     """
     items = find_toplevel_items(c_ast_items)
     items = sort_toplevel_items(items)
-    items = flatten_nested_containers(items)
+    #items = flatten_nested_containers(items)
     items = filter_ignored(items)
     return items
 
@@ -254,36 +254,45 @@ class CAstTransformer(object):
     def visit_Typedef(self, td):
         name = td.name #typedef name
         
-        type_name = self.visit_translate(td.typ)
-        expr = cw_ast.Expr(cw_ast.CName(type_name, name))
         
         #extended ctypedef of enums/struct/union:
+        #TODO: refactor into common function
         if isinstance(td.typ, (c_ast.Enumeration, )): 
-                      #td.typ.__class__.__name__ in ('Enumeration',):
             tag_name = td.typ.name
             body = [self.visit_translate(value) for value in td.typ.values]
             if not body:
-                body.append(cw_ast.Pass)
+                body = [cw_ast.Pass,]
             ext_expr = cw_ast.EnumDef(name, body) #TODO: analogue to visit_Enumeration for struct etc.
             print 'tag_name:', repr(tag_name), 'name:', repr(name)
         
             ctypedef = cw_ast.CTypedefDecl(ext_expr)
             self.pxd_nodes.append(ctypedef)
-            # if not tag_name:
-            #     #removed = self.pxd_nodes.pop() #drop previous enum #TODO: assert, TODO: order might be scrambled!!
-            #     #print "in visit_Typedef: removed", type(removed) 
-            #     self.pxd_nodes.append(ctypedef)
-            # elif tag_name == name:
-            #     pass
-            # else: #tag_name not empty and different
-            #     self.pxd_nodes.append(cw_ast.CTypedefDecl(expr)) #simple ctypedef
+        elif isinstance(td.typ, c_ast.Struct):
+            tag_name = td.typ.name
+            body = [self.visit_translate(member) for member in td.typ.members ]
+            if not body:
+                body = [cw_ast.Pass,]
+            ext_expr = cw_ast.StructDef(name, body)
+            print 'tag_name:', repr(tag_name), 'name:', repr(name)
+            ctypedef = cw_ast.CTypedefDecl(ext_expr)
+            self.pxd_nodes.append(ctypedef)
+        elif isinstance(td.typ, c_ast.Union):
+            tag_name = td.typ.name
+            body = [self.visit_translate(member) for member in td.typ.members ]
+            if not body:
+                body = [cw_ast.Pass,]
+            ext_expr = cw_ast.UnionDef(name, body)
+            print 'tag_name:', repr(tag_name), 'name:', repr(name)
+            ctypedef = cw_ast.CTypedefDecl(ext_expr)
+            self.pxd_nodes.append(ctypedef)
+            
         else:
+            type_name = self.visit_translate(td.typ)
+            expr = cw_ast.Expr(cw_ast.CName(type_name, name))
             ctypedef = cw_ast.CTypedefDecl(expr)
             self.pxd_nodes.append(ctypedef)
-        
 
         print "visit typedef:", repr(name), td.typ
-
 
     #--------------------------------------------------------------------------
     # render nodes
