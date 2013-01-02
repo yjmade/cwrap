@@ -194,7 +194,8 @@ class ClangParser(object):
             else:
                 level.show("can't find declaration for type", kind, t.get_declaration().kind)
                 print
-                return None, None
+                #return None, None #gives 'NoneType' object is not iterable
+                return c_ast.FundamentalType('unknown_type'), None #TODO: fixme
         
     
 
