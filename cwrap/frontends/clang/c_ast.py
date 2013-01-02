@@ -140,14 +140,14 @@ class ArrayType(C_ASTNode):
 
 class Argument(C_ASTNode):
 
-    def init(self, typ, name):
+    def init(self, name, typ):
         self.typ = typ
         self.name = name
 
 
 class Function(C_ASTNode):
 
-    def init(self, name, returns, context, attributes, extern):
+    def init(self, name, returns, context=None, attributes=None, extern=None):
         self.name = name
         self.returns = returns
         self.context = context

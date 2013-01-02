@@ -126,7 +126,7 @@ class ClangParser(object):
     simple_types = {TypeKind.VOID: 'void',
                     #TypeKind.BOOL = TypeKind(3)
                     TypeKind.CHAR_U: 'char',
-                    TypeKind.UCHAR: 'unsigned char',
+                    TypeKind.UCHAR: 'char', #TODO unsigned? char????
                     #TypeKind.CHAR16 = TypeKind(6)
                     #TypeKind.CHAR32 = TypeKind(7)
                     TypeKind.USHORT: 'unsigned short int',
@@ -149,7 +149,7 @@ class ClangParser(object):
 
     def type_to_c_ast_type(self, t, level):
         #convert clang type to c_ast type, return c_ast and hash value for corresponding cursor (or None)
-        level.show( 'in type to c_ast:', 'kind', t.kind)
+        level.show( 'in type to c_ast:', 'kind', t.kind, t.get_declaration().spelling)
 
         kind = t.kind
         if kind in self.simple_types:
@@ -176,7 +176,19 @@ class ClangParser(object):
             else:
                 level.show('enum declaration not yet parsed')
                 typ = self.parse_element(t.get_declaration(), level) #TODO ????
-                return typ, t.get_declaratio().hash
+                return typ, t.get_declaration().hash
+
+        elif kind is TypeKind.FUNCTIONPROTO:
+            level.show('return type:')
+            returntype, id_ = self.type_to_c_ast_type(t.get_result(), level+1)
+            #TODO: very similar to visit_PARM_DECL
+            functype = c_ast.FunctionType(returntype, None)
+            level.show('argument types:')
+            for arg in t.argument_types():
+                #TODO: argument name?
+                functype.add_argument(c_ast.Argument('', self.type_to_c_ast_type(arg, level+1)[0]))
+            return functype, None
+            
                 
         elif kind is TypeKind.UNEXPOSED:
             return self.type_to_c_ast_type(t.get_canonical(), level+1)
@@ -242,6 +254,7 @@ class ClangParser(object):
                            CursorKind.ENUM_DECL,
                            CursorKind.STRUCT_DECL,
                            CursorKind.UNION_DECL,
+                           CursorKind.FUNCTION_DECL,
                            ]:
             self.context.append(result)
         
@@ -348,8 +361,8 @@ class ClangParser(object):
             level.show('in visit_TYPEDEF_DECL, c_ast_type =', c_ast_type.__class__.__name__, 'name =', repr(c_ast_type.name))
             #special handling of typedef enum
             if type(c_ast_type) in (c_ast.Enumeration, c_ast.Union, c_ast.Struct):
-                if not c_ast_type.name: #unnamed enum -> remove enum declaration from 
-                    level.show('remove enum declaration', c_ast_type)
+                if not c_ast_type.name: #unnamed record -> remove declaration from self.all 
+                    level.show('remove declaration', c_ast_type)
                     del self.all[id_]
                 elif c_ast_type.name == cursor.spelling: #enum tagname == typename: no typedef, do nothing
                     return
@@ -387,9 +400,24 @@ class ClangParser(object):
             val = c_ast.EnumValue(name, value)
             parent.add_value(val)
             #level.show('enum constant:', val)
-            return val #TODO necessary ????
+            #return val #TODO necessary ????
         else:
             print 'no parent for enum'
+    
+    def visit_FUNCTION_DECL(self, cursor, level):
+        name = cursor.spelling
+        returntype, id_ = self.type_to_c_ast_type(cursor.type.get_result(), level)
+        return c_ast.Function(name, returntype)
+    
+    def visit_PARM_DECL(self, cursor, level):
+        name = cursor.spelling
+        parent = self.context[-1]
+        typ, id_ = self.type_to_c_ast_type(cursor.type, level)
+        arg = c_ast.Argument(name, typ)
+        parent.add_argument(arg)
+        return arg
+        
+        
         
 
         
@@ -580,9 +608,10 @@ class ClangParser(object):
         c.typ = self.all[c.typ]
 
     def _fixup_Function(self, func):
-        func.returns = self.all[func.returns]
-        func.context = self.all[func.context]
-        func.fixup_argtypes(self.all)
+        #func.returns = self.all[func.returns]
+        #func.context = self.all[func.context]
+        #func.fixup_argtypes(self.all)
+        pass
         
     def _fixup_FunctionType(self, func):
         func.returns = self.all[func.returns]
