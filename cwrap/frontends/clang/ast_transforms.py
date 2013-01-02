@@ -143,7 +143,6 @@ def apply_c_ast_transformations(c_ast_items):
 
     """
     items = find_toplevel_items(c_ast_items)
-    #TODO: correct order?? parser order or line number order?
     items = sort_toplevel_items(items)
     items = flatten_nested_containers(items)
     items = filter_ignored(items)
@@ -259,7 +258,8 @@ class CAstTransformer(object):
         expr = cw_ast.Expr(cw_ast.CName(type_name, name))
         
         #extended ctypedef of enums/struct/union:
-        if td.typ.__class__.__name__ in ('Enumeration',):
+        if isinstance(td.typ, (c_ast.Enumeration, )): 
+                      #td.typ.__class__.__name__ in ('Enumeration',):
             tag_name = td.typ.name
             body = [self.visit_translate(value) for value in td.typ.values]
             if not body:
@@ -268,14 +268,15 @@ class CAstTransformer(object):
             print 'tag_name:', repr(tag_name), 'name:', repr(name)
         
             ctypedef = cw_ast.CTypedefDecl(ext_expr)
-            if not tag_name:
-                #removed = self.pxd_nodes.pop() #drop previous enum #TODO: assert, TODO: order might be scrambled!!
-                #print "in visit_Typedef: removed", type(removed) 
-                self.pxd_nodes.append(ctypedef)
-            elif tag_name == name:
-                pass
-            else: #tag_name not empty and different
-                self.pxd_nodes.append(cw_ast.CTypedefDecl(expr)) #simple ctypedef
+            self.pxd_nodes.append(ctypedef)
+            # if not tag_name:
+            #     #removed = self.pxd_nodes.pop() #drop previous enum #TODO: assert, TODO: order might be scrambled!!
+            #     #print "in visit_Typedef: removed", type(removed) 
+            #     self.pxd_nodes.append(ctypedef)
+            # elif tag_name == name:
+            #     pass
+            # else: #tag_name not empty and different
+            #     self.pxd_nodes.append(cw_ast.CTypedefDecl(expr)) #simple ctypedef
         else:
             ctypedef = cw_ast.CTypedefDecl(expr)
             self.pxd_nodes.append(ctypedef)
