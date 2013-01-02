@@ -181,7 +181,7 @@ class ClangParser(object):
         elif kind is TypeKind.FUNCTIONPROTO:
             level.show('return type:')
             returntype, id_ = self.type_to_c_ast_type(t.get_result(), level+1)
-            #TODO: very similar to visit_PARM_DECL
+            #TODO: very similar to visit_FUNCTION_DECL
             functype = c_ast.FunctionType(returntype, None)
             level.show('argument types:')
             for arg in t.argument_types():
@@ -254,7 +254,8 @@ class ClangParser(object):
                            CursorKind.ENUM_DECL,
                            CursorKind.STRUCT_DECL,
                            CursorKind.UNION_DECL,
-                           CursorKind.FUNCTION_DECL,
+                           #CursorKind.FUNCTION_DECL,
+                           #CursorKind.MACRO_DEFINITION,
                            ]:
             self.context.append(result)
         
@@ -282,8 +283,8 @@ class ClangParser(object):
 
         """
         #print 'Unhandled element `%s`.' % cursor.displayname
-        level.show('unhandled element', repr(cursor.spelling), cursor.kind)
-        print
+        level.show('unhandled element', repr(cursor.spelling), repr(cursor.displayname), cursor.kind)
+        #print
 
     #--------------------------------------------------------------------------
     # Ignored elements and do-nothing handlers
@@ -407,15 +408,19 @@ class ClangParser(object):
     def visit_FUNCTION_DECL(self, cursor, level):
         name = cursor.spelling
         returntype, id_ = self.type_to_c_ast_type(cursor.type.get_result(), level)
-        return c_ast.Function(name, returntype)
+        func = c_ast.Function(name, returntype)
+        for arg in cursor.get_arguments():
+            level.show('function argument', arg.kind, arg.spelling)
+            func.add_argument(c_ast.Argument(arg.spelling, self.type_to_c_ast_type(arg.type, level+1)[0]))
+        return func
     
-    def visit_PARM_DECL(self, cursor, level):
-        name = cursor.spelling
-        parent = self.context[-1]
-        typ, id_ = self.type_to_c_ast_type(cursor.type, level)
-        arg = c_ast.Argument(name, typ)
-        parent.add_argument(arg)
-        return arg
+    # def visit_PARM_DECL(self, cursor, level):
+    #     name = cursor.spelling
+    #     parent = self.context[-1]
+    #     typ, id_ = self.type_to_c_ast_type(cursor.type, level)
+    #     arg = c_ast.Argument(name, typ)
+    #     parent.add_argument(arg)
+    #     return arg
         
         
         
