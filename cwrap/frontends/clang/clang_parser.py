@@ -413,6 +413,11 @@ class ClangParser(object):
             level.show('function argument', arg.kind, arg.spelling)
             func.add_argument(c_ast.Argument(arg.spelling, self.type_to_c_ast_type(arg.type, level+1)[0]))
         return func
+
+    def visit_VAR_DECL(self, cursor, level):
+        name = cursor.spelling
+        typ, id_ = self.type_to_c_ast_type(cursor.type, level)
+        return c_ast.Variable(name, typ, None, None)
     
     # def visit_PARM_DECL(self, cursor, level):
     #     name = cursor.spelling
@@ -590,8 +595,9 @@ class ClangParser(object):
         pass
     
     def _fixup_Variable(self, t):
-        t.typ = self.all[t.typ]
-        t.context = self.all[t.context]
+        #t.typ = self.all[t.typ]
+        #t.context = self.all[t.context]
+        pass
 
     def _fixup_Typedef(self, t):
         #t.typ = self.all[t.typ]
