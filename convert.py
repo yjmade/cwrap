@@ -8,11 +8,11 @@ else:
     files = [File('test.h')]
 
 if __name__ == '__main__':
-    #config = Config('gccxml', files=files, save_dir = 'result_gccxml')
+    #config = Config('gccxml', files=files, save_dir = 'tests/result_gccxml')
     #config.generate()
     
     print '------------------------'
     print
 
-    config_clang = Config('clang', files=files, save_dir = 'result_clang')
+    config_clang = Config('clang', files=files, save_dir = 'tests/result_clang')
     config_clang.generate()
