@@ -37,6 +37,18 @@ def gen_c_ast(header_path, include_dirs):
     return c_ast
 
 
+def print_item(item, caption = '', level=0):
+    if not item:
+        return
+    print '   '*level, item.__class__.__name__, repr(getattr(item, 'name', ''))
+    #print '   '*level, item
+    print '   '*level, 'context:', getattr(getattr(item, 'context', None), 'name', 'no context')
+    print '   '*level, 'bases', getattr(item, 'bases', None)
+    print
+    for i in getattr(item, 'members', []):
+        print_item(i, '', level+1)
+    #print
+
 def generate_asts(config):
     """ Returns an iterable of ASTContainer objects.
 
@@ -58,6 +70,19 @@ def generate_asts(config):
         include_dirs = config.metadata.get('include_dirs', [])
         print 'Parsing %s' % path
         ast_items = gen_c_ast(path, include_dirs) 
+
+        print 'file parsed'
+        print 'AST:'
+        for item in ast_items:
+            if isinstance(item, c_ast.Namespace):
+                for i in item.members:
+                    
+                    if i.location is not None and 'gccxml_builtins' in i.location[0]:
+                        #print 'skipped'
+                        pass
+                    else:
+                        print_item(i)
+
 
         # Apply the transformations to the ast items 
         trans_items = transforms.apply_c_ast_transformations(ast_items)
