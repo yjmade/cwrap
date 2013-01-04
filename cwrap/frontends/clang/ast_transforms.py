@@ -271,20 +271,21 @@ class CAstTransformer(object):
 
     def visit_Typedef(self, td):
         name = td.name #typedef name
-        
+        print "visit typedef:", td.typ.__class__.__name__, repr(td.typ.name), repr(name)        
+
         #extended ctypedef of enums/struct/union:
         #TODO: refactor into common function
-        if isinstance(td.typ, (c_ast.Enumeration, )): 
+        #ctypedef of unnamed enumeration, struct, union: include members
+        if isinstance(td.typ, (c_ast.Enumeration, )) and not td.typ.name: 
             tag_name = td.typ.name
             body = [self.visit_translate(value) for value in td.typ.values]
             if not body:
                 body = [cw_ast.Pass,]
-            ext_expr = cw_ast.EnumDef(name, body) #TODO: analogue to visit_Enumeration for struct etc.
-            print 'tag_name:', repr(tag_name), 'name:', repr(name)
-        
+            ext_expr = cw_ast.EnumDef(name, body)
             ctypedef = cw_ast.CTypedefDecl(ext_expr)
             self.pxd_nodes.append(ctypedef)
-        elif isinstance(td.typ, c_ast.Struct):
+
+        elif isinstance(td.typ, c_ast.Struct) and not td.typ.name:
             tag_name = td.typ.name
             body = [self.visit_translate(member) for member in td.typ.members ]
             if not body:
@@ -293,7 +294,8 @@ class CAstTransformer(object):
             print 'tag_name:', repr(tag_name), 'name:', repr(name)
             ctypedef = cw_ast.CTypedefDecl(ext_expr)
             self.pxd_nodes.append(ctypedef)
-        elif isinstance(td.typ, c_ast.Union):
+
+        elif isinstance(td.typ, c_ast.Union) and not td.typ.name:
             tag_name = td.typ.name
             body = [self.visit_translate(member) for member in td.typ.members ]
             if not body:
@@ -302,13 +304,16 @@ class CAstTransformer(object):
             print 'tag_name:', repr(tag_name), 'name:', repr(name)
             ctypedef = cw_ast.CTypedefDecl(ext_expr)
             self.pxd_nodes.append(ctypedef)
+        
         else:
             type_name = self.visit_translate(td.typ)
             expr = cw_ast.Expr(cw_ast.CName(type_name, name))
             ctypedef = cw_ast.CTypedefDecl(expr)
             self.pxd_nodes.append(ctypedef)
+            
+        print
 
-        print "visit typedef:", repr(name), td.typ
+
 
     #--------------------------------------------------------------------------
     # render nodes

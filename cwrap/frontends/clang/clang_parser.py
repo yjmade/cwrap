@@ -161,7 +161,7 @@ class ClangParser(object):
                     TypeKind.LONGDOUBLE: 'long double',
                     }
 
-    def type_to_c_ast_type(self, t, level):
+    def type_to_c_ast_type(self, t, level, recurse = True):
         #convert clang type to c_ast type, return c_ast and hash value for corresponding cursor (or None)
         level.show( 'in type to c_ast:', 'kind', t.kind, t.get_declaration().spelling)
 
@@ -203,9 +203,8 @@ class ClangParser(object):
                 functype.add_argument(c_ast.Argument('', self.type_to_c_ast_type(arg, level+1)[0]))
             return functype, None
             
-                
-        elif kind is TypeKind.UNEXPOSED:
-            return self.type_to_c_ast_type(t.get_canonical(), level+1)
+        elif kind is TypeKind.UNEXPOSED and recurse:
+            return self.type_to_c_ast_type(t.get_canonical(), level+1, recurse = False)
         
         else:
             level.show('do not know to handle type kind, search for declaration')
@@ -387,15 +386,20 @@ class ClangParser(object):
 
     def visit_TYPEDEF_DECL(self, cursor, level):
         c_ast_type, id_ = self.type_to_c_ast_type(cursor.underlying_typedef_type, level)
-        
         if c_ast_type is not None:
             level.show('in visit_TYPEDEF_DECL, c_ast_type =', c_ast_type.__class__.__name__, 'name =', repr(c_ast_type.name))
+            
             #special handling of typedef enum, struct, union
             if type(c_ast_type) in (c_ast.Enumeration, c_ast.Union, c_ast.Struct):
-                if not c_ast_type.name: #unnamed record -> remove declaration from self.all 
-                    level.show('remove declaration', c_ast_type)
-                    del self.all[id_]
-                elif c_ast_type.name == cursor.spelling: #enum tagname == typename: no typedef, do nothing
+                if not c_ast_type.name: 
+                    #unnamed record -> remove declaration from self.all 
+                    level.show('remove declaration', c_ast_type, self.all[id_])
+                    idx = c_ast_type.context.members.index(c_ast_type)
+                    level.show('remove from parent, idx', idx)
+                    c_ast_type.context.members.pop(idx)
+
+                elif c_ast_type.name == cursor.spelling:
+                    #enum tagname == typename: no typedef, do nothing
                     return
             
             return c_ast.Typedef(cursor.spelling, c_ast_type, None)
@@ -418,7 +422,7 @@ class ClangParser(object):
             
     def visit_ENUM_DECL(self, cursor, level):
         name = cursor.spelling
-        return c_ast.Enumeration(name, None, None)
+        return c_ast.Enumeration(name, self.context[-1])
 
     def visit_ENUM_CONSTANT_DECL(self, cursor, level):
         name = cursor.spelling

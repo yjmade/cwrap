@@ -62,13 +62,10 @@ class Field(C_ASTNode):
 
 class Struct(C_ASTNode):
     
-    def init(self, name, align = None, members = None, context = None, bases = None, size = None):
+    def init(self, name, members = None, context = None):
         self.name = name
-        #self.align = align
         self.members = members if members is not None else []
         self.context = context
-        #self.bases = bases
-        #self.size = size
 
     @property
     def opaque(self):
@@ -77,8 +74,6 @@ class Struct(C_ASTNode):
     def add_member(self, member):
         if member is not None:
             self.members.append(member)
-        #print 'in Struct/add_member', repr(self.name)
-        #print [m.name for m in self.members]
 
     add_child = add_member
 
@@ -112,10 +107,9 @@ class EnumValue(C_ASTNode):
 
 class Enumeration(C_ASTNode):
     
-    def init(self, name, size, align):
+    def init(self, name, context):
         self.name = name
-        self.size = size
-        self.align = align
+        self.context = context
         self.values = []
 
     def add_value(self, val):
