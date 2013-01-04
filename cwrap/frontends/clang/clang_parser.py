@@ -116,11 +116,25 @@ class ClangParser(object):
                          )
 
         for d in tu.diagnostics:
-            print_diag_info(d)
+            self.print_diag_info(d)
         
-        self.parse_element(tu.cursor)
+        #UGLY: first element is TRANSLATION_UNIT, parse children
+        self.parse_element(tu.cursor) 
+        #for c in tu.cursor.get_children():
+        #    self.parse_element(c)
 
 
+    def print_diag_info(self, diag):
+        print 'category name:', diag.category_name
+        print 'location:', diag.location.file, diag.location.line, ':', diag.location.column
+        print 'severity:', diag.severity
+        print 'spelling:', diag.spelling
+        #print 'ranges:', list(diag.ranges)
+        #print 'fixits', list(diag.fixits)
+        print 'fixits', ['%d:%d-%d:%d %s'%(f.range.start.line, f.range.start.column, 
+                                           f.range.end.line, f.range.end.column,
+                                           f.value) for f in diag.fixits]
+        print
 
 
     simple_types = {TypeKind.VOID: 'void',
@@ -212,10 +226,14 @@ class ClangParser(object):
                 else:
                     return c_ast.FundamentalType('unknown_type'), None #TODO: fixme
         
-    
 
     def parse_element(self, cursor, level = Level()):
         
+        #level.show('file:', repr(cursor.location.file))
+        # ignore builtin nodes
+        if cursor.location.file is None and cursor.kind is not CursorKind.TRANSLATION_UNIT:
+            return
+
         # Find and call visitor
         mth = getattr(self, 'visit_' + cursor.kind.name, None)
         if mth is not None:
@@ -243,7 +261,7 @@ class ClangParser(object):
         #debug output
         if result is not None:
             level.show('cursor:', cursor.kind, str(cursor.type.kind))
-            level.show('name', repr(result.name))
+            level.show('name:', repr(result.name))
             print
         
 
@@ -282,6 +300,12 @@ class ClangParser(object):
          found.
 
         """
+
+        #level.show('file:', repr(cursor.location.file))
+        # ignore builtin nodes
+        if cursor.location.file is None:
+            return
+
         #print 'Unhandled element `%s`.' % cursor.displayname
         level.show('unhandled element', repr(cursor.spelling), repr(cursor.displayname), cursor.kind)
         #print
@@ -355,6 +379,9 @@ class ClangParser(object):
     #--------------------------------------------------------------------------
     # Node element handlers
     #--------------------------------------------------------------------------
+    def visit_TRANSLATION_UNIT(self, cursor, level):
+        return c_ast.File(cursor.displayname)
+    
     def visit_TYPEDEF_DECL(self, cursor, level):
         c_ast_type, id_ = self.type_to_c_ast_type(cursor.underlying_typedef_type, level)
         
@@ -372,11 +399,11 @@ class ClangParser(object):
         
     def visit_STRUCT_DECL(self, cursor, level):
         name = cursor.spelling
-        return c_ast.Struct(name, align = None, members = [], context = None, bases = None, size = None)
+        return c_ast.Struct(name, context = self.context[-1], members = [])
 
     def visit_UNION_DECL(self, cursor, level):
         name = cursor.spelling
-        return c_ast.Union(name)
+        return c_ast.Union(name, context = self.context[-1])
 
     def visit_FIELD_DECL(self, cursor, level):
         parent = self.context[-1]
@@ -385,9 +412,11 @@ class ClangParser(object):
         else:
             name = cursor.spelling
             c_ast_type, id_ = self.type_to_c_ast_type(cursor.type, level)
-            member = c_ast.Field(name, c_ast_type, None, None, None)
+            member = c_ast.Field(name, c_ast_type, context = parent)
             parent.add_member(member)
-            #return member
+            level.show('parent', parent.name)
+            level.show('members %s'%[m.name for m in parent.members])
+            return member
             
     def visit_ENUM_DECL(self, cursor, level):
         name = cursor.spelling
@@ -613,7 +642,8 @@ class ClangParser(object):
     _fixup_ReferenceType = _fixup_PointerType
 
     def _fixup_ArrayType(self, a):
-        a.typ = self.all[a.typ]
+        #a.typ = self.all[a.typ]
+        pass
 
     def _fixup_CvQualifiedType(self, c):
         c.typ = self.all[c.typ]

@@ -15,7 +15,7 @@ class Typedef(C_ASTNode):
     def init(self, name, typ, context):
         self.name = name
         self.typ = typ
-        #self.context = context
+        self.context = context
 
 
 class FundamentalType(C_ASTNode):
@@ -50,20 +50,20 @@ class Ignored(C_ASTNode):
 
 class Field(C_ASTNode):
     
-    def init(self, name, typ, context, bits, offset):
+    def init(self, name, typ, context, bits=None, offset=None):
         self.name = name
         self.typ = typ
         self.context = context
-        self.bits = bits
-        self.offset = offset
+        #self.bits = bits
+        #self.offset = offset
    
 
 class Struct(C_ASTNode):
     
-    def init(self, name, align = None, members = [], context = None, bases = None, size = None):
+    def init(self, name, align = None, members = None, context = None, bases = None, size = None):
         self.name = name
         #self.align = align
-        self.members = members
+        self.members = members if members is not None else []
         self.context = context
         #self.bases = bases
         #self.size = size
@@ -74,6 +74,8 @@ class Struct(C_ASTNode):
 
     def add_member(self, member):
         self.members.append(member)
+        #print 'in Struct/add_member', repr(self.name)
+        #print [m.name for m in self.members]
 
 
 
