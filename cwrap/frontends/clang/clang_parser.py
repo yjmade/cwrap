@@ -270,8 +270,8 @@ class ClangParser(object):
         #if name in self.has_subelements: #TODO: c.type in [...]
         if cursor.kind in [CursorKind.TRANSLATION_UNIT,
                            CursorKind.ENUM_DECL,
-                           CursorKind.STRUCT_DECL,
-                           CursorKind.UNION_DECL,
+                           #CursorKind.STRUCT_DECL,
+                           #CursorKind.UNION_DECL,
                            #CursorKind.FUNCTION_DECL,
                            #CursorKind.MACRO_DEFINITION,
                            ]:
@@ -279,6 +279,8 @@ class ClangParser(object):
         
             for c in cursor.get_children():
                 self.parse_element(c, level+1)
+
+                #TODO: accumulate childrens in result list
                 
             # if this element has subelements, then it will have
             # been push onto the stack and needs to be removed.
@@ -293,6 +295,7 @@ class ClangParser(object):
         #print
 
         return result
+
 
     
     def unhandled_element(self, cursor, level):
@@ -380,8 +383,14 @@ class ClangParser(object):
     # Node element handlers
     #--------------------------------------------------------------------------
     def visit_TRANSLATION_UNIT(self, cursor, level):
-        return c_ast.File(cursor.displayname)
-    
+        container = c_ast.File(cursor.displayname)
+        self.context.append(container)
+        for child in cursor.get_children():
+            member = self.parse_element(child, level+1)
+            container.add_member(member)
+        self.context.pop()
+        return container
+
     def visit_TYPEDEF_DECL(self, cursor, level):
         c_ast_type, id_ = self.type_to_c_ast_type(cursor.underlying_typedef_type, level)
         
@@ -399,7 +408,13 @@ class ClangParser(object):
         
     def visit_STRUCT_DECL(self, cursor, level):
         name = cursor.spelling
-        return c_ast.Struct(name, context = self.context[-1], members = [])
+        s = c_ast.Struct(name, context = self.context[-1], members = [])
+        self.context.append(s)
+        for child in cursor.get_children():
+            member = self.parse_element(child, level+1)
+            s.add_member(member)
+        self.context.pop()
+        return s
 
     def visit_UNION_DECL(self, cursor, level):
         name = cursor.spelling
@@ -407,16 +422,10 @@ class ClangParser(object):
 
     def visit_FIELD_DECL(self, cursor, level):
         parent = self.context[-1]
-        if parent is None:
-            level.show('no parent for field declaration')
-        else:
-            name = cursor.spelling
-            c_ast_type, id_ = self.type_to_c_ast_type(cursor.type, level)
-            member = c_ast.Field(name, c_ast_type, context = parent)
-            parent.add_member(member)
-            level.show('parent', parent.name)
-            level.show('members %s'%[m.name for m in parent.members])
-            return member
+        name = cursor.spelling
+        c_ast_type, id_ = self.type_to_c_ast_type(cursor.type, level)
+        member = c_ast.Field(name, c_ast_type, context = parent)
+        return member
             
     def visit_ENUM_DECL(self, cursor, level):
         name = cursor.spelling

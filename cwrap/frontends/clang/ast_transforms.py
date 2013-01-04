@@ -21,7 +21,17 @@ def find_toplevel_items(items):
     
     # res_items = []
     # return toplevel_ns.members[:]
-    return items
+    
+    #return items
+    #TODO:
+    print 'get toplevel items'
+    print 'items', items
+    for item in items:
+        if isinstance(item, c_ast.File):
+            print 'toplevel', item
+            print item.members
+            return item.members
+
     
 def sort_toplevel_items(items):
     """ Sorts the items first by their filename, then by lineno. Returns
@@ -143,8 +153,8 @@ def apply_c_ast_transformations(c_ast_items):
 
     """
     items = find_toplevel_items(c_ast_items)
-    #items = sort_toplevel_items(items)
-    #items = flatten_nested_containers(items)
+    items = sort_toplevel_items(items)
+    items = flatten_nested_containers(items)
     items = filter_ignored(items)
     return items
 

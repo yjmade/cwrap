@@ -73,7 +73,8 @@ class Struct(C_ASTNode):
         return len(self.members) == 0
 
     def add_member(self, member):
-        self.members.append(member)
+        if member is not None:
+            self.members.append(member)
         #print 'in Struct/add_member', repr(self.name)
         #print [m.name for m in self.members]
 
@@ -94,7 +95,8 @@ class Union(C_ASTNode):
         return len(self.members) == 0
 
     def add_member(self, member):
-        self.members.append(member)
+        if member is not None:
+            self.members.append(member)
 
 
 class EnumValue(C_ASTNode):
@@ -216,9 +218,15 @@ class Alias(C_ASTNode):
 
 class File(C_ASTNode):
 
-    def init(self, name):
+    def init(self, name, members = None):
         self.name = name
-    
+        self.members = members if members is not None else []
+
+    def add_member(self, member):
+        if member is not None:
+            self.members.append(member)
+        
+        
 
 class Namespace(C_ASTNode):
 
