@@ -266,12 +266,14 @@ class ClangParser(object):
 
         # if this element has subelements, push it onto the context
         # since the next elements will be it's children.
-        if cursor.kind in [CursorKind.TRANSLATION_UNIT,
-                           CursorKind.ENUM_DECL,
-                           CursorKind.STRUCT_DECL,
-                           CursorKind.UNION_DECL,
-                           #CursorKind.FUNCTION_DECL,
-                           #CursorKind.MACRO_DEFINITION,
+        if cursor.kind in [
+            #CursorKind.MACRO_DEFINITION,
+            CursorKind.TRANSLATION_UNIT,
+            CursorKind.NAMESPACE,
+            CursorKind.ENUM_DECL,
+            CursorKind.STRUCT_DECL,
+            CursorKind.UNION_DECL,
+            CursorKind.CLASS_DECL,
                            ]:
             self.context.append(result)
 
@@ -384,6 +386,9 @@ class ClangParser(object):
         self.context.append(container)
         return container
 
+    def visit_NAMESPACE(self, cursor, level):
+        return c_ast.Namespace(cursor.spelling)
+
     def visit_TYPEDEF_DECL(self, cursor, level):
         c_ast_type, id_ = self.type_to_c_ast_type(cursor.underlying_typedef_type, level)
         if c_ast_type is not None:
@@ -442,6 +447,10 @@ class ClangParser(object):
         name = cursor.spelling
         typ, id_ = self.type_to_c_ast_type(cursor.type, level)
         return c_ast.Variable(name, typ, None, None)
+
+    def visit_CLASS_DECL(self, cursor, level):
+        c = c_ast.Class(cursor.spelling, context = self.context[-1])
+        return c
     
     # def visit_PARM_DECL(self, cursor, level):
     #     name = cursor.spelling
@@ -612,9 +621,10 @@ class ClangParser(object):
     # handler that returns a node object.
     
     def _fixup_Namespace(self, ns):
-        for i, mbr in enumerate(ns.members):
-            ns.members[i] = self.all[mbr]
-
+        #for i, mbr in enumerate(ns.members):
+        #    ns.members[i] = self.all[mbr]
+        pass
+        
     def _fixup_File(self, f): 
         pass
     
@@ -753,7 +763,7 @@ class ClangParser(object):
         # Walk through all the items, hooking up the appropriate 
         # links by replacing the id tags with the actual objects
         remove = []
-        for name, node in self.all.items():
+        #for name, node in self.all.items():
             # location = getattr(node, 'location', None)
             # if location is not None:
             #     fil = location.file
@@ -761,13 +771,15 @@ class ClangParser(object):
             #     line = 0
             #     #node.location = (self.all[fil].name, int(line))
                 
-            method_name = '_fixup_' + node.__class__.__name__
-            fixup_method = getattr(self, method_name, None)
-            if fixup_method is not None:
-                fixup_method(node)
-            else:
-                remove.append(node)
-                print "remove node", node
+            # TODO: fixup not necessary ?
+
+            # method_name = '_fixup_' + node.__class__.__name__
+            # fixup_method = getattr(self, method_name, None)
+            # if fixup_method is not None:
+            #     fixup_method(node)
+            # else:
+            #     remove.append(node)
+            #     print "remove node", node
         
         # # remove any nodes don't have handler methods
         # for n in remove:
