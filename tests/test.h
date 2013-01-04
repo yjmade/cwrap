@@ -64,7 +64,7 @@ typedef struct _Astruct {
     } nested_data;
 } Astruct;
 
-
+/*
 // double nesting
 typedef struct {
     union uInner {
@@ -77,7 +77,7 @@ typedef struct {
         } whoa;
     } totally;
 } OuterStruct;
-
+*/
 
 // function which returns pointer to int
 int *foo_bar(double t, Bar *barptr);
