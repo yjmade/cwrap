@@ -21,7 +21,17 @@ def find_toplevel_items(items):
     
     # res_items = []
     # return toplevel_ns.members[:]
-    return items
+    
+    #return items
+    #TODO:
+    #print 'get toplevel items'
+    #print 'items', items
+    for item in items:
+        if isinstance(item, c_ast.File):
+            #print 'toplevel', item
+            #print item.members
+            return item.members
+
     
 def sort_toplevel_items(items):
     """ Sorts the items first by their filename, then by lineno. Returns
@@ -32,13 +42,17 @@ def sort_toplevel_items(items):
     return sorted(items, key=key)
 
 
-def _flatten_container(container, items=None, context_name=None):
+def _flatten_container(container, items=None): #, context_name=None):
     """ Given a struct or union, replaces nested structs or unions
     with toplevel struct/unions and a typdef'd member. This will 
     recursively expand everything nested. The `items` and `context_name`
     arguments are used internally. Returns a list of flattened nodes.
 
     """
+    print '_flatten_container_start', container.__class__.__name__, container.name
+    print [(m.__class__.__name__, m.name) for m in container.members]
+
+
     if items is None:
         items = []
 
@@ -58,7 +72,7 @@ def _flatten_container(container, items=None, context_name=None):
             field.context = parent_context
             
             # Expand any nested definitions for this container.
-            _flatten_container(field, items, parent_name)
+            _flatten_container(field, items) #, parent_name)
             
             # Create a typedef for the mangled name with the parent_context
             typedef = c_ast.Typedef(mangled_typename, field, parent_context)
@@ -73,13 +87,17 @@ def _flatten_container(container, items=None, context_name=None):
     # Use the mod_context to remove the nest definitions and replace 
     # any fields that reference them with the typedefs.
     for idx, field, typedef in reversed(mod_context):
-        container.members.pop(idx)
+        r = container.members.pop(idx) #TODO????
+        print 'removed member', r.name
         for member in container.members:
             if isinstance(member, c_ast.Field):
                 if member.typ is field:
                     member.typ = typedef
 
     items.append(container)
+
+    print '_flatten_container_end: items', [(item.__class__.__name__, item.name) for item in items]
+
 
     return items
 
@@ -143,9 +161,9 @@ def apply_c_ast_transformations(c_ast_items):
 
     """
     items = find_toplevel_items(c_ast_items)
-    #items = sort_toplevel_items(items)
-    #items = flatten_nested_containers(items)
-    items = filter_ignored(items)
+    items = sort_toplevel_items(items)
+    items = flatten_nested_containers(items)
+    #items = filter_ignored(items)
     return items
 
 
@@ -253,21 +271,21 @@ class CAstTransformer(object):
 
     def visit_Typedef(self, td):
         name = td.name #typedef name
-        
-        
+        print "visit typedef:", td.typ.__class__.__name__, repr(td.typ.name), repr(name)        
+
         #extended ctypedef of enums/struct/union:
         #TODO: refactor into common function
-        if isinstance(td.typ, (c_ast.Enumeration, )): 
+        #ctypedef of unnamed enumeration, struct, union: include members
+        if isinstance(td.typ, (c_ast.Enumeration, )) and not td.typ.name: 
             tag_name = td.typ.name
             body = [self.visit_translate(value) for value in td.typ.values]
             if not body:
                 body = [cw_ast.Pass,]
-            ext_expr = cw_ast.EnumDef(name, body) #TODO: analogue to visit_Enumeration for struct etc.
-            print 'tag_name:', repr(tag_name), 'name:', repr(name)
-        
+            ext_expr = cw_ast.EnumDef(name, body)
             ctypedef = cw_ast.CTypedefDecl(ext_expr)
             self.pxd_nodes.append(ctypedef)
-        elif isinstance(td.typ, c_ast.Struct):
+
+        elif isinstance(td.typ, c_ast.Struct) and not td.typ.name:
             tag_name = td.typ.name
             body = [self.visit_translate(member) for member in td.typ.members ]
             if not body:
@@ -276,7 +294,8 @@ class CAstTransformer(object):
             print 'tag_name:', repr(tag_name), 'name:', repr(name)
             ctypedef = cw_ast.CTypedefDecl(ext_expr)
             self.pxd_nodes.append(ctypedef)
-        elif isinstance(td.typ, c_ast.Union):
+
+        elif isinstance(td.typ, c_ast.Union) and not td.typ.name:
             tag_name = td.typ.name
             body = [self.visit_translate(member) for member in td.typ.members ]
             if not body:
@@ -285,14 +304,16 @@ class CAstTransformer(object):
             print 'tag_name:', repr(tag_name), 'name:', repr(name)
             ctypedef = cw_ast.CTypedefDecl(ext_expr)
             self.pxd_nodes.append(ctypedef)
-            
+        
         else:
             type_name = self.visit_translate(td.typ)
             expr = cw_ast.Expr(cw_ast.CName(type_name, name))
             ctypedef = cw_ast.CTypedefDecl(expr)
             self.pxd_nodes.append(ctypedef)
+            
+        print
 
-        print "visit typedef:", repr(name), td.typ
+
 
     #--------------------------------------------------------------------------
     # render nodes

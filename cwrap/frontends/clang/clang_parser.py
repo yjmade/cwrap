@@ -161,7 +161,7 @@ class ClangParser(object):
                     TypeKind.LONGDOUBLE: 'long double',
                     }
 
-    def type_to_c_ast_type(self, t, level):
+    def type_to_c_ast_type(self, t, level, recurse = True):
         #convert clang type to c_ast type, return c_ast and hash value for corresponding cursor (or None)
         level.show( 'in type to c_ast:', 'kind', t.kind, t.get_declaration().spelling)
 
@@ -203,9 +203,8 @@ class ClangParser(object):
                 functype.add_argument(c_ast.Argument('', self.type_to_c_ast_type(arg, level+1)[0]))
             return functype, None
             
-                
-        elif kind is TypeKind.UNEXPOSED:
-            return self.type_to_c_ast_type(t.get_canonical(), level+1)
+        elif kind is TypeKind.UNEXPOSED and recurse:
+            return self.type_to_c_ast_type(t.get_canonical(), level+1, recurse = False)
         
         else:
             level.show('do not know to handle type kind, search for declaration')
@@ -267,7 +266,6 @@ class ClangParser(object):
 
         # if this element has subelements, push it onto the context
         # since the next elements will be it's children.
-        #if name in self.has_subelements: #TODO: c.type in [...]
         if cursor.kind in [CursorKind.TRANSLATION_UNIT,
                            CursorKind.ENUM_DECL,
                            CursorKind.STRUCT_DECL,
@@ -276,14 +274,15 @@ class ClangParser(object):
                            #CursorKind.MACRO_DEFINITION,
                            ]:
             self.context.append(result)
-        
+
             for c in cursor.get_children():
-                self.parse_element(c, level+1)
+                child = self.parse_element(c, level+1)
+                result.add_child(child)
                 
             # if this element has subelements, then it will have
             # been push onto the stack and needs to be removed.
-                
             self.context.pop()
+
         self.cdata = None
         
         
@@ -293,6 +292,7 @@ class ClangParser(object):
         #print
 
         return result
+
 
     
     def unhandled_element(self, cursor, level):
@@ -380,26 +380,34 @@ class ClangParser(object):
     # Node element handlers
     #--------------------------------------------------------------------------
     def visit_TRANSLATION_UNIT(self, cursor, level):
-        return c_ast.File(cursor.displayname)
-    
+        container = c_ast.File(cursor.displayname)
+        self.context.append(container)
+        return container
+
     def visit_TYPEDEF_DECL(self, cursor, level):
         c_ast_type, id_ = self.type_to_c_ast_type(cursor.underlying_typedef_type, level)
-        
         if c_ast_type is not None:
             level.show('in visit_TYPEDEF_DECL, c_ast_type =', c_ast_type.__class__.__name__, 'name =', repr(c_ast_type.name))
-            #special handling of typedef enum
+            
+            #special handling of typedef enum, struct, union
             if type(c_ast_type) in (c_ast.Enumeration, c_ast.Union, c_ast.Struct):
-                if not c_ast_type.name: #unnamed record -> remove declaration from self.all 
-                    level.show('remove declaration', c_ast_type)
-                    del self.all[id_]
-                elif c_ast_type.name == cursor.spelling: #enum tagname == typename: no typedef, do nothing
+                if not c_ast_type.name: 
+                    #unnamed record -> remove declaration from self.all 
+                    level.show('remove declaration', c_ast_type, self.all[id_])
+                    idx = c_ast_type.context.members.index(c_ast_type)
+                    level.show('remove from parent, idx', idx)
+                    c_ast_type.context.members.pop(idx)
+
+                elif c_ast_type.name == cursor.spelling:
+                    #enum tagname == typename: no typedef, do nothing
                     return
             
             return c_ast.Typedef(cursor.spelling, c_ast_type, None)
         
     def visit_STRUCT_DECL(self, cursor, level):
         name = cursor.spelling
-        return c_ast.Struct(name, context = self.context[-1], members = [])
+        s = c_ast.Struct(name, context = self.context[-1], members = [])
+        return s
 
     def visit_UNION_DECL(self, cursor, level):
         name = cursor.spelling
@@ -407,32 +415,19 @@ class ClangParser(object):
 
     def visit_FIELD_DECL(self, cursor, level):
         parent = self.context[-1]
-        if parent is None:
-            level.show('no parent for field declaration')
-        else:
-            name = cursor.spelling
-            c_ast_type, id_ = self.type_to_c_ast_type(cursor.type, level)
-            member = c_ast.Field(name, c_ast_type, context = parent)
-            parent.add_member(member)
-            level.show('parent', parent.name)
-            level.show('members %s'%[m.name for m in parent.members])
-            return member
+        name = cursor.spelling
+        c_ast_type, id_ = self.type_to_c_ast_type(cursor.type, level)
+        member = c_ast.Field(name, c_ast_type, context = parent)
+        return member
             
     def visit_ENUM_DECL(self, cursor, level):
         name = cursor.spelling
-        return c_ast.Enumeration(name, None, None)
+        return c_ast.Enumeration(name, self.context[-1])
 
     def visit_ENUM_CONSTANT_DECL(self, cursor, level):
-        parent = self.context[-1]
-        if parent is not None:
-            name = cursor.spelling
-            value = cursor.enum_value
-            val = c_ast.EnumValue(name, value)
-            parent.add_value(val)
-            #level.show('enum constant:', val)
-            #return val #TODO necessary ????
-        else:
-            print 'no parent for enum'
+        name = cursor.spelling
+        value = cursor.enum_value
+        return c_ast.EnumValue(name, value)
     
     def visit_FUNCTION_DECL(self, cursor, level):
         name = cursor.spelling

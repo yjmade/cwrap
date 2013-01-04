@@ -47,6 +47,8 @@ class Ignored(C_ASTNode):
     def add_argument(self, argument):
         self.arguments.append(argument)
 
+    add_child = add_argument
+
 
 class Field(C_ASTNode):
     
@@ -60,23 +62,20 @@ class Field(C_ASTNode):
 
 class Struct(C_ASTNode):
     
-    def init(self, name, align = None, members = None, context = None, bases = None, size = None):
+    def init(self, name, members = None, context = None):
         self.name = name
-        #self.align = align
         self.members = members if members is not None else []
         self.context = context
-        #self.bases = bases
-        #self.size = size
 
     @property
     def opaque(self):
         return len(self.members) == 0
 
     def add_member(self, member):
-        self.members.append(member)
-        #print 'in Struct/add_member', repr(self.name)
-        #print [m.name for m in self.members]
+        if member is not None:
+            self.members.append(member)
 
+    add_child = add_member
 
 
 class Union(C_ASTNode):
@@ -94,9 +93,11 @@ class Union(C_ASTNode):
         return len(self.members) == 0
 
     def add_member(self, member):
-        self.members.append(member)
+        if member is not None:
+            self.members.append(member)
 
-
+    add_child = add_member
+            
 class EnumValue(C_ASTNode):
 
     def init(self, name, value):
@@ -106,14 +107,15 @@ class EnumValue(C_ASTNode):
 
 class Enumeration(C_ASTNode):
     
-    def init(self, name, size, align):
+    def init(self, name, context):
         self.name = name
-        self.size = size
-        self.align = align
+        self.context = context
         self.values = []
 
     def add_value(self, val):
         self.values.append(val)
+
+    add_child = add_value
         
     @property
     def opaque(self):
@@ -164,6 +166,7 @@ class Function(C_ASTNode):
     def add_argument(self, argument):
         self.arguments.append(argument)
 
+    add_child = add_argument
 
 class FunctionType(C_ASTNode):
 
@@ -179,6 +182,7 @@ class FunctionType(C_ASTNode):
     def add_argument(self, argument):
         self.arguments.append(argument)
     
+    add_child = add_argument
 
 class OperatorFunction(C_ASTNode):
 
@@ -197,6 +201,7 @@ class OperatorFunction(C_ASTNode):
     def add_argument(self, argument):
         self.arguments.append(argument)
 
+    add_child = add_argument
 
 class Macro(C_ASTNode):
 
@@ -216,9 +221,17 @@ class Alias(C_ASTNode):
 
 class File(C_ASTNode):
 
-    def init(self, name):
+    def init(self, name, members = None):
         self.name = name
-    
+        self.members = members if members is not None else []
+
+    def add_member(self, member):
+        if member is not None:
+            self.members.append(member)
+
+    add_child = add_member
+        
+        
 
 class Namespace(C_ASTNode):
 
