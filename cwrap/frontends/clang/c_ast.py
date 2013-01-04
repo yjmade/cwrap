@@ -47,6 +47,8 @@ class Ignored(C_ASTNode):
     def add_argument(self, argument):
         self.arguments.append(argument)
 
+    add_child = add_argument
+
 
 class Field(C_ASTNode):
     
@@ -78,6 +80,7 @@ class Struct(C_ASTNode):
         #print 'in Struct/add_member', repr(self.name)
         #print [m.name for m in self.members]
 
+    add_child = add_member
 
 
 class Union(C_ASTNode):
@@ -98,7 +101,8 @@ class Union(C_ASTNode):
         if member is not None:
             self.members.append(member)
 
-
+    add_child = add_member
+            
 class EnumValue(C_ASTNode):
 
     def init(self, name, value):
@@ -116,6 +120,8 @@ class Enumeration(C_ASTNode):
 
     def add_value(self, val):
         self.values.append(val)
+
+    add_child = add_value
         
     @property
     def opaque(self):
@@ -166,6 +172,7 @@ class Function(C_ASTNode):
     def add_argument(self, argument):
         self.arguments.append(argument)
 
+    add_child = add_argument
 
 class FunctionType(C_ASTNode):
 
@@ -181,6 +188,7 @@ class FunctionType(C_ASTNode):
     def add_argument(self, argument):
         self.arguments.append(argument)
     
+    add_child = add_argument
 
 class OperatorFunction(C_ASTNode):
 
@@ -199,6 +207,7 @@ class OperatorFunction(C_ASTNode):
     def add_argument(self, argument):
         self.arguments.append(argument)
 
+    add_child = add_argument
 
 class Macro(C_ASTNode):
 
@@ -225,6 +234,8 @@ class File(C_ASTNode):
     def add_member(self, member):
         if member is not None:
             self.members.append(member)
+
+    add_child = add_member
         
         
 
