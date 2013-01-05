@@ -162,10 +162,10 @@ class CWAN(object):
     """ The base class of all CWrap Ast Nodes. 
 
     """
-    def __init__(self, *args):
-        self.init(*args)
+    def __init__(self, *args, **kwargs):
+        self.init(*args, **kwargs)
 
-    def init(self, *args):
+    def init(self, *args, **kwargs):
         pass
 
 
@@ -1485,5 +1485,20 @@ class Array(ctype):
         assert_int(dim, 'dim')
         self.value = value
         self.dim = dim
+
+class CppClassDef(stmt):
+    """ A cppclass definition. Inherits stmt.
+
+    name : The string name of the class.
+    body : A list of stmt nodes.
+    #TODO: add template arguments
+
+    """
+    def init(self, name, body):
+        assert_str(name, 'name')
+        assert_stmts(body, 'body')
+        self.name = name
+        self.body = body
+
 
 

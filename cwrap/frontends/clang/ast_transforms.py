@@ -201,6 +201,9 @@ class CAstTransformer(object):
                     if not item.location[0].endswith(header_name):
                         continue
                 self.visit(item)
+                #TODO: debug only
+                print self.pxd_nodes
+                print
        
             extern = cw_ast.ExternFrom(container.header_name, self.pxd_nodes)
             cdef_decl = cw_ast.CdefDecl([], extern)
@@ -313,7 +316,16 @@ class CAstTransformer(object):
             
         print
 
-
+    def visit_Class(self, klasse):
+        name = klasse.name
+        body = []
+        for member in klasse.members:
+            body.append(self.visit_translate(member))
+        if not body:
+            body.append(cw_ast.Pass)
+        class_def = cw_ast.CppClassDef(name, body)
+        cdef = cw_ast.CdefDecl([], class_def)
+        self.pxd_nodes.append(cdef)
 
     #--------------------------------------------------------------------------
     # render nodes
@@ -380,4 +392,19 @@ class CAstTransformer(object):
         returns = self.visit_translate(func_type.returns)
         func_type = cw_ast.CFunctionType(args, returns)
         return func_type
+
+    def translate_Class(self, klass):
+        name = klass.name
+        return cw_ast.TypeName(cw_ast.Name(name, cw_ast.Param))
+
+    def translate_Function(self, func):
+        name = func.name
+        args = []
+        for arg in func.arguments:
+            args.append(self.visit_translate(arg))
+        args = cw_ast.arguments(args, None, None, [])
+        returns = self.visit_translate(func.returns)
+        func_def = cw_ast.CFunctionDecl(name, args, returns, None)
+        return func_def
+        
     

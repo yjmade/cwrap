@@ -279,7 +279,8 @@ class ClangParser(object):
 
             for c in cursor.get_children():
                 child = self.parse_element(c, level+1)
-                result.add_child(child)
+                if child is not None:
+                    result.add_child(child)
                 
             # if this element has subelements, then it will have
             # been push onto the stack and needs to be removed.
@@ -442,6 +443,9 @@ class ClangParser(object):
             level.show('function argument', arg.kind, arg.spelling)
             func.add_argument(c_ast.Argument(arg.spelling, self.type_to_c_ast_type(arg.type, level+1)[0]))
         return func
+
+    visit_CXX_METHOD = visit_FUNCTION_DECL
+    visit_CONSTRUCTOR = visit_FUNCTION_DECL
 
     def visit_VAR_DECL(self, cursor, level):
         name = cursor.spelling
@@ -791,7 +795,9 @@ class ClangParser(object):
         # by the transformations applied later on.
         interesting = (c_ast.Typedef, c_ast.Struct, c_ast.Enumeration, 
                        c_ast.Union, c_ast.Function, c_ast.Variable, 
-                       c_ast.Namespace, c_ast.File)
+                       c_ast.Namespace, c_ast.File,
+                       c_ast.Class,
+                       )
 
         result = []
         namespace = {}
