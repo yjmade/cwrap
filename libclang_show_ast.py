@@ -51,7 +51,9 @@ def show_type(t, level, title):
         level.show('size:', t.element_count)
         
     if t.kind is TypeKind.UNEXPOSED:
-        show_type(t.get_canonical(), level+1, 'canonical type')
+        canonical_type = t.get_canonical()
+        if canonical_type.kind is not TypeKind.UNEXPOSED:
+            show_type(canonical_type, level+1, 'canonical type')
 
 
 def show_ast(cursor, filter_pred=verbose, level=Level()):
