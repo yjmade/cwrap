@@ -10,7 +10,7 @@ This fork adds another frontend, using libclang_ of the llvm-project for parsing
 Getting started
 ---------------
 
-* checkout (note development happens in branch development and feature/XXX)
+* checkout (note development happens in development and feature branches)
 
 * copy binary of libclang library (libclang.so, libclang.dylib or libclang.dll), contained in `llvm binary distribution <http://llvm.org/releases/download.html>`_ into .../cwrap/frontends/clang/clang
 
@@ -20,7 +20,7 @@ Getting started
 
    python runtest.py tests/test.h
 
-* hav a look at the generated pxd file
+* have a look at the generated pxd file
 
 ::
 
@@ -28,3 +28,8 @@ Getting started
 
 .. _Cython: http://www.cython.org
 .. _libclang: http://clang.llvm.org/doxygen/group__CINDEX.html
+
+Current status
+--------------
+
+This project is in it's early stage. Don't expect to get useful results.
