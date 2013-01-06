@@ -45,7 +45,8 @@ class Ignored(C_ASTNode):
             arg.typ = typemap[arg.typ]
             
     def add_argument(self, argument):
-        self.arguments.append(argument)
+        if argument is not None:
+            self.arguments.append(argument)
 
     add_child = add_argument
 
@@ -164,7 +165,8 @@ class Function(C_ASTNode):
             arg.typ = typemap[arg.typ]
             
     def add_argument(self, argument):
-        self.arguments.append(argument)
+        if argument is not None:
+            self.arguments.append(argument)
 
     add_child = add_argument
 
@@ -199,7 +201,8 @@ class OperatorFunction(C_ASTNode):
             arg.typ = typemap[arg.typ]
             
     def add_argument(self, argument):
-        self.arguments.append(argument)
+        if argument is not None:
+            self.arguments.append(argument)
 
     add_child = add_argument
 
@@ -235,9 +238,15 @@ class File(C_ASTNode):
 
 class Namespace(C_ASTNode):
 
-    def init(self, name, members):
+    def init(self, name, members = None):
         self.name = name
-        self.members = members
+        self.members = members if members is not None else []
+        
+    def add_member(self, member):
+        if member is not None:
+            self.members.append(member)
+    
+    add_child = add_member
 
 
 class Variable(C_ASTNode):
@@ -248,4 +257,19 @@ class Variable(C_ASTNode):
         self.context = context
         self.init = init
 
+#-----------------
+# C++ nodes
+#-----------------
 
+class Class(C_ASTNode):
+    
+    def init(self, name, members = None, context = None):
+        self.name = name
+        self.members = members if members is not None else []
+        self.context = context
+
+    def add_member(self, member):
+        if member is not None:
+            self.members.append(member)
+
+    add_child = add_member

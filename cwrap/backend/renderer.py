@@ -539,6 +539,23 @@ class ASTRenderer(object):
         self.visit(ctypedef_decl.value)
         self.code.newline()
 
+    def visit_CppClassDef(self, cls_def):
+        name = cls_def.name
+        if self.cdef_stmt_context:
+            mod = self.cdef_stmt_context.pop()
+            head = '%s cppclass %s:' % (mod, name)
+        else:
+            head = 'cppclass %s:'%name
+        self.code.write_i(head)
+        self.code.newline()
+
+        self.code.indent()
+        for stmt in cls_def.body:
+            self.visit(stmt)
+        self.code.dedent()
+
+        self.code.newline()
+
     def visit_StructDef(self, struct_def):
         name = struct_def.name
         if self.cdef_stmt_context:

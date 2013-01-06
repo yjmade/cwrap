@@ -266,18 +266,21 @@ class ClangParser(object):
 
         # if this element has subelements, push it onto the context
         # since the next elements will be it's children.
-        if cursor.kind in [CursorKind.TRANSLATION_UNIT,
-                           CursorKind.ENUM_DECL,
-                           CursorKind.STRUCT_DECL,
-                           CursorKind.UNION_DECL,
-                           #CursorKind.FUNCTION_DECL,
-                           #CursorKind.MACRO_DEFINITION,
+        if cursor.kind in [
+            #CursorKind.MACRO_DEFINITION,
+            CursorKind.TRANSLATION_UNIT,
+            CursorKind.NAMESPACE,
+            CursorKind.ENUM_DECL,
+            CursorKind.STRUCT_DECL,
+            CursorKind.UNION_DECL,
+            CursorKind.CLASS_DECL,
                            ]:
             self.context.append(result)
 
             for c in cursor.get_children():
                 child = self.parse_element(c, level+1)
-                result.add_child(child)
+                if child is not None:
+                    result.add_child(child)
                 
             # if this element has subelements, then it will have
             # been push onto the stack and needs to be removed.
@@ -384,6 +387,9 @@ class ClangParser(object):
         self.context.append(container)
         return container
 
+    def visit_NAMESPACE(self, cursor, level):
+        return c_ast.Namespace(cursor.spelling)
+
     def visit_TYPEDEF_DECL(self, cursor, level):
         c_ast_type, id_ = self.type_to_c_ast_type(cursor.underlying_typedef_type, level)
         if c_ast_type is not None:
@@ -438,10 +444,17 @@ class ClangParser(object):
             func.add_argument(c_ast.Argument(arg.spelling, self.type_to_c_ast_type(arg.type, level+1)[0]))
         return func
 
+    visit_CXX_METHOD = visit_FUNCTION_DECL
+    visit_CONSTRUCTOR = visit_FUNCTION_DECL
+
     def visit_VAR_DECL(self, cursor, level):
         name = cursor.spelling
         typ, id_ = self.type_to_c_ast_type(cursor.type, level)
         return c_ast.Variable(name, typ, None, None)
+
+    def visit_CLASS_DECL(self, cursor, level):
+        c = c_ast.Class(cursor.spelling, context = self.context[-1])
+        return c
     
     # def visit_PARM_DECL(self, cursor, level):
     #     name = cursor.spelling
@@ -612,9 +625,10 @@ class ClangParser(object):
     # handler that returns a node object.
     
     def _fixup_Namespace(self, ns):
-        for i, mbr in enumerate(ns.members):
-            ns.members[i] = self.all[mbr]
-
+        #for i, mbr in enumerate(ns.members):
+        #    ns.members[i] = self.all[mbr]
+        pass
+        
     def _fixup_File(self, f): 
         pass
     
@@ -753,7 +767,7 @@ class ClangParser(object):
         # Walk through all the items, hooking up the appropriate 
         # links by replacing the id tags with the actual objects
         remove = []
-        for name, node in self.all.items():
+        #for name, node in self.all.items():
             # location = getattr(node, 'location', None)
             # if location is not None:
             #     fil = location.file
@@ -761,13 +775,15 @@ class ClangParser(object):
             #     line = 0
             #     #node.location = (self.all[fil].name, int(line))
                 
-            method_name = '_fixup_' + node.__class__.__name__
-            fixup_method = getattr(self, method_name, None)
-            if fixup_method is not None:
-                fixup_method(node)
-            else:
-                remove.append(node)
-                print "remove node", node
+            # TODO: fixup not necessary ?
+
+            # method_name = '_fixup_' + node.__class__.__name__
+            # fixup_method = getattr(self, method_name, None)
+            # if fixup_method is not None:
+            #     fixup_method(node)
+            # else:
+            #     remove.append(node)
+            #     print "remove node", node
         
         # # remove any nodes don't have handler methods
         # for n in remove:
@@ -779,7 +795,9 @@ class ClangParser(object):
         # by the transformations applied later on.
         interesting = (c_ast.Typedef, c_ast.Struct, c_ast.Enumeration, 
                        c_ast.Union, c_ast.Function, c_ast.Variable, 
-                       c_ast.Namespace, c_ast.File)
+                       c_ast.Namespace, c_ast.File,
+                       c_ast.Class,
+                       )
 
         result = []
         namespace = {}
