@@ -23,6 +23,7 @@ Getting started
 * hav a look at the generated pxd file
 
 ::
+
    less tests/result_clang/_test.pxd
 
 .. _Cython: http://www.cython.org
