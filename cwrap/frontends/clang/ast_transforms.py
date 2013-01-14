@@ -94,7 +94,7 @@ def _flatten_container(container, items=None): #, context_name=None):
                 if member.typ is field:
                     member.typ = typedef
 
-    items.append(container)
+    items.append(container) #removed for typedef???
 
     print '_flatten_container_end: items', [(item.__class__.__name__, item.name) for item in items]
 
@@ -112,10 +112,16 @@ def flatten_nested_containers(items):
     """
     res_items = []
     for node in items:
-        if not isinstance(node, (c_ast.Struct, c_ast.Union)):
-            res_items.append(node)
-        else:
+        if isinstance(node, (c_ast.Struct, c_ast.Union)):
             res_items.extend(_flatten_container(node))
+        elif isinstance(node, c_ast.Typedef):
+            print 'found Typedef'
+            r = flatten_nested_containers([node.typ,])
+            print 'flattened typedef type:', r
+            res_items.extend(r)
+#            res_items.append(node)
+        else:
+            res_items.append(node)
     return res_items
                     
            
@@ -161,6 +167,10 @@ def apply_c_ast_transformations(c_ast_items):
 
     """
     items = find_toplevel_items(c_ast_items)
+    print 'in ast_transforms, toplevel_items:'
+    for item in items:
+        print item.__class__.__name__, item.name
+    print '#end toplevel_items '
     items = sort_toplevel_items(items)
     items = flatten_nested_containers(items)
     #items = filter_ignored(items)
