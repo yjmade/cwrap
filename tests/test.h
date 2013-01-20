@@ -27,7 +27,7 @@ typedef struct _Bar {
 } Bar;
 
 
-// typedef'd anonymous enum
+/// typedef'd anonymous enum
 typedef enum {
     ONE,
     TWO,
@@ -37,11 +37,11 @@ typedef enum {
 } Baz;
 
 
-// Typedef'd typedef
+/// Typedef'd typedef
 typedef Baz Spam;
 
 
-// typedef'd struct
+/// typedef'd struct
 typedef struct Foo Eggs;
 
 

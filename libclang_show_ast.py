@@ -55,6 +55,12 @@ def show_type(t, level, title):
         if canonical_type.kind is not TypeKind.UNEXPOSED:
             show_type(canonical_type, level+1, 'canonical type')
 
+def show_comment(comment, level):
+    level.show('comment kind', comment.kind, repr(comment.text()))
+    for c in comment.children():
+        show_comment(c, level+1)
+
+    
 
 def show_ast(cursor, filter_pred=verbose, level=Level()):
     '''pretty print cursor AST'''
@@ -69,10 +75,17 @@ def show_ast(cursor, filter_pred=verbose, level=Level()):
         #T = ' '.join([t.spelling for t in cursor.get_tokens()][:-1]) #one token too much?
         #level.show('token: ', T)
 
+        if cursor.get_brief_comment_text() is not None:
+            level.show('#', cursor.get_brief_comment_text())
+        if cursor.get_raw_comment_text():
+            #level.show('##', cursor.get_raw_comment_text())
+            comment = cursor.get_parsed_comment()
+            show_comment(comment, level)
+            
         if cursor.kind.is_preprocessing():
             print "PREPROCESSING"
             print cursor.location
-            T = ' '.join([t.spelling for t in cursor.get_tokens()][:-1]) #one token too much?
+            T = '|'.join([t.spelling for t in cursor.get_tokens()][:-1]) #one token too much?
             level.show('token: ', T)
 
 

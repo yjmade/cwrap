@@ -1304,6 +1304,32 @@ class Cursor(Structure):
         """
         return TokenGroup.get_tokens(self._tu, self.extent)
 
+    def get_brief_comment_text(self):
+        """
+        Given a cursor that represents a documentable entity (e.g.,
+        declaration), return the associated \\brief paragraph; otherwise return the
+        first paragraph.
+        """
+        if not hasattr(self, '_comment_brief'):
+            self._comment_brief = conf.lib.clang_Cursor_getBriefCommentText(self)
+
+        return self._comment_brief
+
+    def get_raw_comment_text(self):
+        """
+        Given a cursor that represents a declaration, return the
+        associated comment text, including comment markers.
+        """
+        if not hasattr(self, '_comment_raw'):
+            self._comment_raw = conf.lib.clang_Cursor_getRawCommentText(self)
+
+        return self._comment_raw
+
+    def get_parsed_comment(self):
+        #TODO: caching
+        return conf.lib.clang_Cursor_getParsedComment(self)
+        
+
     @staticmethod
     def from_result(res, fn, args):
         assert isinstance(res, Cursor)
@@ -2394,6 +2420,92 @@ class CompilationDatabase(ClangObject):
         """
         return conf.lib.clang_CompilationDatabase_getCompileCommands(self,
                                                                      filename)
+class CommentKind(object): 
+    #similar to CursorKind
+    """
+    Describes the type of the comment AST node (CXComment). A comment
+    node can be considered block content (e. g., paragraph), inline
+    content (plain text) or neither (the root AST node).
+    """
+
+    # The unique kind objects, indexed by id.
+    _kinds = []
+    _name_map = None
+
+    def __init__(self, value):
+        if value >= len(CommentKind._kinds):
+            CommentKind._kinds += [None] * (value - len(CommentKind._kinds) + 1)
+        if CommentKind._kinds[value] is not None:
+            raise ValueError,'CommentKind already loaded'
+        self.value = value
+        CommentKind._kinds[value] = self
+        CommentKind._name_map = None
+
+    def from_param(self):
+        return self.value
+
+    @property
+    def name(self):
+        """Get the enumeration name of this cursor kind."""
+        if self._name_map is None:
+            self._name_map = {}
+            for key,value in CommentKind.__dict__.items():
+                if isinstance(value,CommentKind):
+                    self._name_map[value] = key
+        return self._name_map[self]
+
+    @staticmethod
+    def from_id(id):
+        if id >= len(CommentKind._kinds) or CommentKind._kinds[id] is None:
+            raise ValueError,'Unknown type kind %d' % id
+        return CommentKind._kinds[id]
+
+    def __repr__(self):
+        return 'CommentKind.%s' % (self.name,)
+
+CommentKind.NULL = CommentKind(0)
+CommentKind.TEXT = CommentKind(1)
+CommentKind.INLINE_COMMAND = CommentKind(2)
+CommentKind.HTML_START_TAG = CommentKind(3)
+CommentKind.HTML_END_TAG = CommentKind(4)
+CommentKind.PARAGRAPH = CommentKind(5)
+CommentKind.BLOCK_COMMAND = CommentKind(6)
+CommentKind.PARAM_COMMAND = CommentKind(7)
+CommentKind.TEMPLATE_PARAM_COMMAND = CommentKind(8)
+CommentKind.VERBATIM_BLOCK_COMMAND = CommentKind(9)
+CommentKind.VERBATIM_BLOCK_LINE = CommentKind(10)
+CommentKind.VERBATIM_LINE = CommentKind(11)
+CommentKind.FULL_COMMENT = CommentKind(12)
+
+
+class Comment(Structure):
+    """A comment AST node"""
+
+    _fields_ = [("ASTNode", c_void_p), ("TranslationUnit", c_void_p)]
+
+    #def __init__(self, ptr):
+    #    self.ptr = ptr
+    #    print "Comment.init", hex(self.ptr)
+
+    #def from_param(self):
+    #    print "Comment.from_param", self, hex(self.ptr)
+    #    return self.ptr
+    
+    @property
+    def kind(self):
+        return CommentKind.from_id(conf.lib.clang_Comment_getKind(self))
+
+    def children(self):
+        length = conf.lib.clang_Comment_getNumChildren(self)
+        for i in xrange(length):
+            yield conf.lib.clang_Comment_getChild(self, i)
+    
+    def text(self):
+        if self.kind == CommentKind.TEXT:
+            return conf.lib.clang_TextComment_getText(self)
+        else:
+            pass
+    
 
 class Token(Structure):
     """Represents a single token from the preprocessor.
@@ -2989,6 +3101,42 @@ functionList = [
    [Cursor, c_uint],
    Cursor,
    Cursor.from_result),
+
+  ("clang_Cursor_getBriefCommentText",
+   [Cursor],
+   _CXString,
+   _CXString.from_result),
+
+  ("clang_Cursor_getCommentRange",
+   [Cursor],
+   SourceRange),
+
+  ("clang_Cursor_getRawCommentText",
+   [Cursor],
+   _CXString,
+   _CXString.from_result),
+
+  ("clang_Comment_getKind",
+   [Comment],
+   c_uint), #CommentKind
+
+  ("clang_Comment_getNumChildren",
+   [Comment],
+   c_uint),
+
+  ("clang_Comment_getChild",
+   [Comment, c_uint],
+   Comment),
+  
+  ("clang_Cursor_getParsedComment",
+   [Cursor],
+   Comment),
+
+  ("clang_TextComment_getText",
+   [Comment],
+   _CXString,
+   _CXString.from_result)
+     
 ]
 
 class LibclangError(Exception):
