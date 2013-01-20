@@ -65,6 +65,21 @@ struct Node {
     Node *nextptr;
 };
 
+* function declaration with no arguments
+
+int foo()
+
+gives FUNCTION_DECL, with Kind FUNCTIONNOPROTO, get_arguments violates
+assert.
+   * patch cindex.py ?
+   * should be int foo(void)
+   * difference C/C++ ? 
+   
+   empty parameter list
+   C:, function takes unknown number of
+   parameters, 
+   C++: takes no parameters/
+
 
 TODOS
 =====

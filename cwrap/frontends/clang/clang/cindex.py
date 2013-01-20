@@ -1501,7 +1501,7 @@ class Type(Structure):
 
                 return result
 
-        assert self.kind == TypeKind.FUNCTIONPROTO
+        assert self.kind == TypeKind.FUNCTIONPROTO or self.kind == TypeKind.FUNCTIONNOPROTO
         return ArgumentsIterator(self)
 
     @property
