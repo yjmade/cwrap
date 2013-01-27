@@ -127,6 +127,7 @@ if __name__ == '__main__':
     index = clang.cindex.Index.create()
     tu = index.parse(sys.argv[1],
                      #args = '-x c',
+                     args=['-I/usr/include/c++/4.2.1','-I/usr/include/c++/4.2.1/tr1'],
                      options = clang.cindex.TranslationUnit.PARSE_INCOMPLETE + \
                          clang.cindex.TranslationUnit.PARSE_DETAILED_PROCESSING_RECORD + \
                          #clang.cindex.TranslationUnit.PARSE_INCLUDE_BRIEF_COMMENTS_IN_CODE_COMPLETION + \

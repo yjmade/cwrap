@@ -14,5 +14,11 @@ if __name__ == '__main__':
     print '------------------------'
     print
 
-    config_clang = Config('clang', files=files, save_dir = 'tests/result_clang')
+    config_clang = Config('clang', files=files, 
+                          save_dir = 'tests/result_clang',
+                          #include_dirs = [], #/usr/include/c++/4.2.1
+                          #extern_name = '',
+                          #implementation_name = '',
+                          #language = 'c++',
+                          )
     config_clang.generate()

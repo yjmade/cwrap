@@ -8,13 +8,13 @@ import ast_transforms as transforms
 import clang_parser
 
 
-def gen_c_ast(header_path, include_dirs):
+def gen_c_ast(header_path, include_dirs, language):
     """ Parse the given header file into a C style ast which can be
     transformed into a CWrap ast. The include dirs are passed along to 
     gccxml.
 
     """
-    c_ast = clang_parser.parse(header_path)
+    c_ast = clang_parser.parse(header_path, include_dirs, language)
     return c_ast
 
 
@@ -37,9 +37,11 @@ def generate_asts(config):
 
         # generate the c_ast for the header 
         include_dirs = config.metadata.get('include_dirs', [])
+
+        language = config.metadata.get('language', '')
         
         print 'Parsing %s' % path
-        ast_items = gen_c_ast(path, include_dirs) 
+        ast_items = gen_c_ast(path, include_dirs, language) 
 
         print 'in __init__/generate_asts()'
         print 'file parsed'

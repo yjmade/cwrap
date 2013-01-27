@@ -102,14 +102,18 @@ class ClangParser(object):
     #--------------------------------------------------------------------------
     # Parsing entry points
     #--------------------------------------------------------------------------
-    def parse(self, cfile):
+    def parse(self, cfile, include_dirs, language):
         """ Parsing entry point. `cfile` is a filename or a file
         object.
 
         """
-
+        args_include_dirs = ['-I'+d for d in include_dirs]
+        args_language = ['-x '+language if language else '']
+                
         index = clang.cindex.Index.create()
         tu = index.parse(cfile,
+                         ##args = args_include_dirs + args_language, #['-I/usr/include/c++/4.2.1',],
+                         args = [''],
                          options = clang.cindex.TranslationUnit.PARSE_INCOMPLETE + \
                              clang.cindex.TranslationUnit.PARSE_DETAILED_PROCESSING_RECORD + \
                              clang.cindex.TranslationUnit.PARSE_SKIP_FUNCTION_BODIES
@@ -814,10 +818,9 @@ class ClangParser(object):
         return result
 
 
-def parse(cfile):
-    # parse an XML file into a sequence of type descriptions
+def parse(cfile, include_dirs, language):
     parser = ClangParser()
-    parser.parse(cfile)
+    parser.parse(cfile, include_dirs, language)
     
     print 'all:'
     for a in parser.all:
