@@ -108,12 +108,12 @@ class ClangParser(object):
 
         """
         args_include_dirs = ['-I'+d for d in include_dirs]
-        args_language = ['-x '+language if language else '']
+        args_language = ['-x'+language if language else '']
                 
         index = clang.cindex.Index.create()
         tu = index.parse(cfile,
-                         ##args = args_include_dirs + args_language, #['-I/usr/include/c++/4.2.1',],
-                         args = [''],
+                         args = args_include_dirs + args_language, 
+                         #args = ['-I/usr/include/c++/4.2.1',],
                          options = clang.cindex.TranslationUnit.PARSE_INCOMPLETE + \
                              clang.cindex.TranslationUnit.PARSE_DETAILED_PROCESSING_RECORD + \
                              clang.cindex.TranslationUnit.PARSE_SKIP_FUNCTION_BODIES
@@ -143,8 +143,8 @@ class ClangParser(object):
 
     simple_types = {TypeKind.VOID: 'void',
                     #TypeKind.BOOL = TypeKind(3)
-                    TypeKind.CHAR_U: 'char',
-                    TypeKind.UCHAR: 'char', #TODO unsigned? char????
+                    TypeKind.CHAR_U: 'unsigned char',
+                    TypeKind.UCHAR: 'unsigned char', #TODO unsigned? char????
                     #TypeKind.CHAR16 = TypeKind(6)
                     #TypeKind.CHAR32 = TypeKind(7)
                     TypeKind.USHORT: 'unsigned short int',
@@ -152,8 +152,8 @@ class ClangParser(object):
                     TypeKind.ULONG: 'unsigned long int',
                     TypeKind.ULONGLONG: 'unsigned long long int',
                     #TypeKind.UINT128: TypeKind(12)
-                    TypeKind.CHAR_S: 'signed char',
-                    TypeKind.SCHAR: 'signed char',
+                    TypeKind.CHAR_S: 'char',
+                    TypeKind.SCHAR: 'char',
                     #TypeKind.WCHAR: TypeKind(15)
                     TypeKind.SHORT: 'short int',
                     TypeKind.INT: 'int',
@@ -167,7 +167,7 @@ class ClangParser(object):
 
     def type_to_c_ast_type(self, t, level, recurse = True):
         #convert clang type to c_ast type, return c_ast and hash value for corresponding cursor (or None)
-        level.show( 'in type to c_ast:', 'kind', t.kind, t.get_declaration().spelling)
+        level.show( 'in type to c_ast:', 'kind:', t.kind, repr(t.get_declaration().spelling))
 
         kind = t.kind
         if kind in self.simple_types:
@@ -227,7 +227,9 @@ class ClangParser(object):
                 if typ is not None:
                     return typ, t.get_declaration().hash
                 else:
+                    raise Exception
                     return c_ast.FundamentalType('unknown_type'), None #TODO: fixme
+                
         
 
     def parse_element(self, cursor, level = Level()):
@@ -278,6 +280,8 @@ class ClangParser(object):
             CursorKind.STRUCT_DECL,
             CursorKind.UNION_DECL,
             CursorKind.CLASS_DECL,
+            CursorKind.CLASS_TEMPLATE,
+            CursorKind.FUNCTION_TEMPLATE,
                            ]:
             self.context.append(result)
 
@@ -404,9 +408,12 @@ class ClangParser(object):
                 if not c_ast_type.name: 
                     #unnamed record -> remove declaration from self.all 
                     level.show('remove declaration', c_ast_type, self.all[id_])
-                    idx = c_ast_type.context.members.index(c_ast_type)
-                    level.show('remove from parent, idx', idx)
-                    c_ast_type.context.members.pop(idx)
+                    try:
+                        idx = c_ast_type.context.members.index(c_ast_type)
+                        level.show('remove from parent, idx', idx)
+                        c_ast_type.context.members.pop(idx)
+                    except ValueError:
+                        level.show("not contained in parent", c_ast_type)
 
                 elif c_ast_type.name == cursor.spelling:
                     #enum tagname == typename: no typedef, do nothing
@@ -459,6 +466,12 @@ class ClangParser(object):
     def visit_CLASS_DECL(self, cursor, level):
         c = c_ast.Class(cursor.spelling, context = self.context[-1])
         return c
+
+    def visit_CLASS_TEMPLATE(self, cursor, level):
+        c = c_ast.Class(cursor.spelling, context = self.context[-1])
+        return c
+
+    visit_FUNCTION_TEMPLATE = visit_FUNCTION_DECL
     
     # def visit_PARM_DECL(self, cursor, level):
     #     name = cursor.spelling

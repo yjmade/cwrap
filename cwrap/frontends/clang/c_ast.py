@@ -273,3 +273,9 @@ class Class(C_ASTNode):
             self.members.append(member)
 
     add_child = add_member
+
+class ClassTemplate(Class):
+    
+    template_params = []
+    def add_template_parameter(self, template_param):
+        self.template_params.append(template_param)

@@ -208,8 +208,9 @@ class CAstTransformer(object):
                 # only transform items for this header (not #include'd
                 # or other __builtin__ stuff)
                 if item.location is not None:
-                    if not item.location[0].endswith(header_name):
-                        continue
+                    #if not item.location[0].endswith(header_name):
+                    #    continue
+                    pass
                 self.visit(item)
                 #TODO: debug only
                 print self.pxd_nodes
@@ -237,7 +238,17 @@ class CAstTransformer(object):
         name = struct.name
         body = []
         for member in struct.members:
-            body.append(self.visit_translate(member))
+            #body.append(self.visit_translate(member))
+
+            m = self.visit_translate(member)
+            if m is not None:
+                if isinstance(m, cw_ast.stmt):
+                    print "append to struct:", name, "member:", type(m)
+                    body.append(m)
+                else:
+                    print "omitting", m, "from class", name
+
+
         if not body:
             body.append(cw_ast.Pass)
         struct_def = cw_ast.StructDef(name, body)
@@ -330,12 +341,26 @@ class CAstTransformer(object):
         name = klasse.name
         body = []
         for member in klasse.members:
-            body.append(self.visit_translate(member))
+            m = self.visit_translate(member)
+            #body.append(self.visit_translate(member))
+            if m is not None:
+                if isinstance(m, cw_ast.stmt):
+                    print "append class:", name, "member:", type(m)
+                    body.append(m)
+                else:
+                    print "omitting", m, "from class", name
+
         if not body:
             body.append(cw_ast.Pass)
         class_def = cw_ast.CppClassDef(name, body)
         cdef = cw_ast.CdefDecl([], class_def)
         self.pxd_nodes.append(cdef)
+
+    def visit_Namespace(self, ns):
+        #TODO: implement Namespacing handling
+        body = []
+        for member in ns.members:
+            t = self.visit(member)
 
     #--------------------------------------------------------------------------
     # render nodes

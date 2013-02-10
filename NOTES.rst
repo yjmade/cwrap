@@ -91,6 +91,12 @@ TODOS
 
 * parse cppclass definition: templates, ...
 
+How to handle templates? seems to be difficult to get e.g. return type
+of template function. cursor.type.get_result() gives only INVALID. 
+
+* Should I use _indexSourceFile with indexing callbacks? (Higher level
+  API functions) ?????
+
 * parse doxygen documentation: need to update Index.h
 
 
@@ -102,6 +108,8 @@ some other test cases
 cython-codegen
 
 pyzmq
+
+libstd++
 
 own projects
 ------------
