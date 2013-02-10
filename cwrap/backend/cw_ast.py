@@ -1500,5 +1500,16 @@ class CppClassDef(stmt):
         self.name = name
         self.body = body
 
+class Reference(ctype):
+    """ A C++ reference node. Inherits ctype.
+
+    value : a ctype node.
+
+    """
+    def init(self, value):
+        assert_ctype(value, 'value')
+        self.value = value
+
+
 
 

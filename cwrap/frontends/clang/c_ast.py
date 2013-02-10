@@ -17,14 +17,10 @@ class Typedef(C_ASTNode):
         self.typ = typ
         self.context = context
 
-
 class FundamentalType(C_ASTNode):
 
-    def init(self, name): #, size, align):
+    def init(self, name):
         self.name = name
-        #self.size = size
-        #self.align = align
-
 
 class CvQualifiedType(C_ASTNode):
 
@@ -32,7 +28,6 @@ class CvQualifiedType(C_ASTNode):
         self.typ = typ
         self.const = const
         self.volatile = volatile
-
 
 class Ignored(C_ASTNode):
 
@@ -170,6 +165,7 @@ class Function(C_ASTNode):
 
     add_child = add_argument
 
+
 class FunctionType(C_ASTNode):
 
     def init(self, returns, attributes):
@@ -185,6 +181,7 @@ class FunctionType(C_ASTNode):
         self.arguments.append(argument)
     
     add_child = add_argument
+
 
 class OperatorFunction(C_ASTNode):
 
@@ -205,6 +202,7 @@ class OperatorFunction(C_ASTNode):
             self.arguments.append(argument)
 
     add_child = add_argument
+
 
 class Macro(C_ASTNode):
 
@@ -267,15 +265,27 @@ class Class(C_ASTNode):
         self.name = name
         self.members = members if members is not None else []
         self.context = context
-
+        
     def add_member(self, member):
         if member is not None:
             self.members.append(member)
 
     add_child = add_member
 
+    #TODO: own class for ClassTemplate ????
+    template_params = []
+    def add_template_parameter(self, template_param):
+        self.template_params.append(template_param)
+
 class ClassTemplate(Class):
     
     template_params = []
     def add_template_parameter(self, template_param):
         self.template_params.append(template_param)
+
+class RefType(C_ASTNode):
+    #C++ reference type
+    def init(self, typ):
+        self.typ = typ
+
+

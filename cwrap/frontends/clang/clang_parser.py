@@ -142,7 +142,7 @@ class ClangParser(object):
 
 
     simple_types = {TypeKind.VOID: 'void',
-                    #TypeKind.BOOL = TypeKind(3)
+                    TypeKind.BOOL: 'bint',
                     TypeKind.CHAR_U: 'unsigned char',
                     TypeKind.UCHAR: 'unsigned char', #TODO unsigned? char????
                     #TypeKind.CHAR16 = TypeKind(6)
@@ -183,8 +183,12 @@ class ClangParser(object):
         elif kind is TypeKind.POINTER:
             ptrtype, foo = self.type_to_c_ast_type(t.get_pointee(), level+1)
             if ptrtype is not None:
-                return c_ast.PointerType(#self.type_to_c_ast_type(t.get_pointee()),
-                    ptrtype, None, None), None
+                return c_ast.PointerType(ptrtype, None, None), None
+
+        elif kind is TypeKind.LVALUEREFERENCE:
+            reftype, foo = self.type_to_c_ast_type(t.get_pointee(), level+1)
+            if reftype is not None:
+                return c_ast.RefType(reftype), None
 
         elif kind is TypeKind.ENUM:
             #see if declaration already parsed
@@ -227,7 +231,7 @@ class ClangParser(object):
                 if typ is not None:
                     return typ, t.get_declaration().hash
                 else:
-                    raise Exception
+                    #raise Exception 
                     return c_ast.FundamentalType('unknown_type'), None #TODO: fixme
                 
         
@@ -282,12 +286,17 @@ class ClangParser(object):
             CursorKind.CLASS_DECL,
             CursorKind.CLASS_TEMPLATE,
             CursorKind.FUNCTION_TEMPLATE,
+            CursorKind.FIELD_DECL,
+            CursorKind.PARM_DECL,
+            CursorKind.CONSTRUCTOR,
+            CursorKind.CXX_METHOD,
+            CursorKind.FUNCTION_DECL,
                            ]:
             self.context.append(result)
 
             for c in cursor.get_children():
                 child = self.parse_element(c, level+1)
-                if child is not None:
+                if child is not None and hasattr(result, 'add_child'):
                     result.add_child(child)
                 
             # if this element has subelements, then it will have
@@ -450,9 +459,9 @@ class ClangParser(object):
         name = cursor.spelling
         returntype, id_ = self.type_to_c_ast_type(cursor.type.get_result(), level)
         func = c_ast.Function(name, returntype)
-        for arg in cursor.get_arguments():
-            level.show('function argument', arg.kind, arg.spelling)
-            func.add_argument(c_ast.Argument(arg.spelling, self.type_to_c_ast_type(arg.type, level+1)[0]))
+        #for arg in cursor.get_arguments():
+        #    level.show('function argument', arg.kind, arg.spelling)
+        #    func.add_argument(c_ast.Argument(arg.spelling, self.type_to_c_ast_type(arg.type, level+1)[0]))
         return func
 
     visit_CXX_METHOD = visit_FUNCTION_DECL
@@ -473,25 +482,41 @@ class ClangParser(object):
 
     visit_FUNCTION_TEMPLATE = visit_FUNCTION_DECL
     
-    # def visit_PARM_DECL(self, cursor, level):
-    #     name = cursor.spelling
-    #     parent = self.context[-1]
-    #     typ, id_ = self.type_to_c_ast_type(cursor.type, level)
-    #     arg = c_ast.Argument(name, typ)
-    #     parent.add_argument(arg)
-    #     return arg
+    def visit_PARM_DECL(self, cursor, level):
+        name = cursor.spelling
+        parent = self.context[-1]
+        typ, id_ = self.type_to_c_ast_type(cursor.type, level)
+        arg = c_ast.Argument(name, typ)
+        #parent.add_argument(arg)
+        return arg
         
-        
-        
+    def repair_type(self, obj, name):
+        #repair type of c_ast object
+        if isinstance(obj, c_ast.FundamentalType):
+            obj.name = name
+        elif isinstance(obj, (c_ast.Field, c_ast.PointerType, c_ast.ArrayType, c_ast.RefType, c_ast.Argument)):
+            self.repair_type(obj.typ, name)
+        elif isinstance(obj, (c_ast.Function, c_ast.FunctionType, c_ast.OperatorFunction)):
+            self.repair_type(obj.returns, name)
 
-        
+    def visit_TYPE_REF(self, cursor, level):
+        typ, id = self.type_to_c_ast_type(cursor.type, level)
+        parent = self.context[-1]
+        if parent is not None:
+            level.show('TYPE REF', repr(cursor.displayname), 'parent: %s, type: %s'%(parent, cursor.type.kind))
 
+            if cursor.type.kind is TypeKind.UNEXPOSED:
+                #fix type of parent
+                    self.repair_type(parent, cursor.displayname)
+                    
 
-
-
-
-
-
+    def visit_TEMPLATE_TYPE_PARAMETER(self, cursor, level):
+        param = cursor.spelling
+        parent = self.context[-1]
+        if hasattr(parent, 'add_template_parameter'):
+            parent.add_template_parameter(param)
+        else:
+            level.show('TEMPLATE_TYPE_PARAMETER: unknown parent', parent)
 
     def visit_Namespace(self, attrs):
         name = attrs['name']

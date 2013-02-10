@@ -210,7 +210,7 @@ class CAstTransformer(object):
                 if item.location is not None:
                     #if not item.location[0].endswith(header_name):
                     #    continue
-                    pass
+                    pass #include everythin
                 self.visit(item)
                 #TODO: debug only
                 print self.pxd_nodes
@@ -403,6 +403,9 @@ class CAstTransformer(object):
         
     def translate_PointerType(self, pointer):
         return cw_ast.Pointer(self.visit_translate(pointer.typ))
+
+    def translate_RefType(self, ref):
+        return cw_ast.Reference(self.visit_translate(ref.typ))
 
     def translate_ArrayType(self, array):
         min = int(array.min)

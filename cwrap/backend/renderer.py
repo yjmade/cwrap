@@ -1054,6 +1054,10 @@ class ASTRenderer(object):
     #--------------------------------------------------------------------------
     def extract_reference_types(self, node):
         mods = []
+        if isinstance(node, (cw_ast.Reference)):
+            mods.append('&')
+            node = node.value
+
         while isinstance(node, (cw_ast.Pointer, cw_ast.Array)):
             if isinstance(node, cw_ast.Pointer):
                 mods.append('*')
@@ -1078,6 +1082,8 @@ class ASTRenderer(object):
         sub_str = '%s%s'
         for mod in mods:
             if mod == '*':
+                name = sub_str % (mod, name)
+            elif mod == '&':
                 name = sub_str % (mod, name)
             elif mod == '()':
                 name = '(%s)' % name
