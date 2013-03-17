@@ -3,8 +3,6 @@
 cdef extern from "test.h":
 
     int m
-    ctypedef long long int LLong
-
     cdef struct Foo:
         int a
         LLong b
@@ -12,22 +10,22 @@ cdef extern from "test.h":
     cdef struct _Bar:
         double b
 
-    ctypedef _Bar Bar
+    cdef struct _Bar:
+        double b
 
-    ctypedef enum Baz:
+    cdef enum:
         ONE
         TWO
         THREE
         FOUR
         FIVE
 
-
-    ctypedef Baz Spam
-
-    ctypedef Foo Eggs
+    cdef struct Foo:
+        int a
+        LLong b
 
     cdef struct __AUnion__sNested:
-        signed char *data
+        char *data
 
     ctypedef __AUnion__sNested __AUnion__sNested_t
 
@@ -37,12 +35,14 @@ cdef extern from "test.h":
         long double c
         __AUnion__sNested_t nested_data
         float *data
+        float *data
 
     cdef union ___Astruct__uNested:
         int a
         double b
         long double c
         __AUnion__sNested_t nested_data
+        float *data
         float *data
 
     ctypedef ___Astruct__uNested ___Astruct__uNested_t
@@ -51,23 +51,23 @@ cdef extern from "test.h":
         Eggs *eggsPtr
         ___Astruct__uNested_t nested_data
 
-    ctypedef _Astruct Astruct
+    cdef struct _Astruct:
+        Eggs *eggsPtr
+        ___Astruct__uNested_t nested_data
 
     int *foo_bar(double t, Bar *barptr)
 
-    double *((*crazy_fn(int *, signed char *, Baz))[10])
-
-    ctypedef signed char *((*(*crazy_fn_ptr_)(void *))[42])
+    double *((*crazy_fn(int *, char *, Baz))[10])
 
     cdef struct AnotherFoo:
         int (*func)(double, int *)
 
     float (*returns_func_ptr(int foo))(float, float)
 
-    double *(*(*(*returns_func_ptr_nested(signed char *))(int, double))(int, long int))(signed char *)
+    double *(*(*(*returns_func_ptr_nested(char *))(int, double))(int, long int))(char *)
 
     cdef struct CrazyField:
-        signed char *(*(*crazy_ptr)(int))(float *)
+        char *(*(*crazy_ptr)(int))(float *)
 
     double (*func_ptr_var)()
     int (*(*func_ptr_func_ptr_var)())()
