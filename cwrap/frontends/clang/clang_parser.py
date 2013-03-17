@@ -143,7 +143,7 @@ class ClangParser(object):
 
     simple_types = {TypeKind.VOID: 'void',
                     TypeKind.BOOL: 'bint',
-                    TypeKind.CHAR_U: 'unsigned char',
+                    TypeKind.CHAR_U: 'char',
                     TypeKind.UCHAR: 'unsigned char', #TODO unsigned? char????
                     #TypeKind.CHAR16 = TypeKind(6)
                     #TypeKind.CHAR32 = TypeKind(7)
@@ -152,9 +152,9 @@ class ClangParser(object):
                     TypeKind.ULONG: 'unsigned long int',
                     TypeKind.ULONGLONG: 'unsigned long long int',
                     #TypeKind.UINT128: TypeKind(12)
-                    TypeKind.CHAR_S: 'char',
-                    TypeKind.SCHAR: 'char',
-                    #TypeKind.WCHAR: TypeKind(15)
+                    TypeKind.CHAR_S: 'char', #signed char on platforms where it is default
+                    TypeKind.SCHAR: 'signed char',
+                    TypeKind.WCHAR: 'char', #TODO: ???
                     TypeKind.SHORT: 'short int',
                     TypeKind.INT: 'int',
                     TypeKind.LONG: 'long int',
@@ -232,6 +232,10 @@ class ClangParser(object):
                     return typ, t.get_declaration().hash
                 else:
                     #raise Exception 
+                    if kind is TypeKind.UNEXPOSED:
+                        return c_ast.FundamentalType('unexposed_type'), None
+
+                    level.show('give up, unknown_type')
                     return c_ast.FundamentalType('unknown_type'), None #TODO: fixme
                 
         
