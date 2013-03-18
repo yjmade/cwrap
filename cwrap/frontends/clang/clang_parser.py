@@ -433,6 +433,15 @@ class ClangParser(object):
         return c_ast.Union(name, context = self.context[-1])
 
     def visit_FIELD_DECL(self, cursor, level):
+        # If a field has struct as a child, use the field name as the
+        # structs name (in case it hasn't one). This way anonymous structs
+        # and unions get a proper mangled name for Cython.
+        children = list(cursor.get_children())
+        if len(children) == 1 and children[0].kind in \
+                [CursorKind.STRUCT_DECL, CursorKind.UNION_DECL]:
+            node = self.all[children[0].hash]
+            if not node.name:
+                node.name = cursor.spelling
         parent = self.context[-1]
         name = cursor.spelling
         c_ast_type, id_ = self.type_to_c_ast_type(cursor.type, level)
