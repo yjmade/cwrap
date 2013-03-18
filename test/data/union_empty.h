@@ -1,0 +1,1 @@
+union empty_u;
