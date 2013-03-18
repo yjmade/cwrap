@@ -26,6 +26,12 @@ Getting started
 
    less tests/result_clang/_test.pxd
 
+* Additional testing (this command needs Python 2.7):
+
+::
+
+   python -m unittest discover -s test
+
 .. _Cython: http://www.cython.org
 .. _libclang: http://clang.llvm.org/doxygen/group__CINDEX.html
 
