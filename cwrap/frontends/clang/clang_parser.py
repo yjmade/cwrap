@@ -143,18 +143,18 @@ class ClangParser(object):
                     TypeKind.UCHAR: 'unsigned char', #TODO unsigned? char????
                     #TypeKind.CHAR16 = TypeKind(6)
                     #TypeKind.CHAR32 = TypeKind(7)
-                    TypeKind.USHORT: 'unsigned short int',
+                    TypeKind.USHORT: 'unsigned short',
                     TypeKind.UINT: 'unsigned int',
-                    TypeKind.ULONG: 'unsigned long int',
-                    TypeKind.ULONGLONG: 'unsigned long long int',
+                    TypeKind.ULONG: 'unsigned long',
+                    TypeKind.ULONGLONG: 'unsigned long long',
                     #TypeKind.UINT128: TypeKind(12)
                     TypeKind.CHAR_S: 'char', #signed char on platforms where it is default
                     TypeKind.SCHAR: 'signed char',
                     TypeKind.WCHAR: 'char', #TODO: ???
-                    TypeKind.SHORT: 'short int',
+                    TypeKind.SHORT: 'short',
                     TypeKind.INT: 'int',
-                    TypeKind.LONG: 'long int',
-                    TypeKind.LONGLONG: 'long long int',
+                    TypeKind.LONG: 'long',
+                    TypeKind.LONGLONG: 'long long',
                     #TypeKind.INT128: TypeKind(20)
                     TypeKind.FLOAT: 'float',
                     TypeKind.DOUBLE: 'double',
