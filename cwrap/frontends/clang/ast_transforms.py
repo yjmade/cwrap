@@ -114,12 +114,6 @@ def flatten_nested_containers(items):
     for node in items:
         if isinstance(node, (c_ast.Struct, c_ast.Union)):
             res_items.extend(_flatten_container(node))
-        elif isinstance(node, c_ast.Typedef):
-            print 'found Typedef'
-            r = flatten_nested_containers([node.typ,])
-            print 'flattened typedef type:', r
-            res_items.extend(r)
-#            res_items.append(node)
         else:
             res_items.append(node)
     return res_items
