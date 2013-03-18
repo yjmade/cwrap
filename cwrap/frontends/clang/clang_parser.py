@@ -13,11 +13,7 @@ import re
 
 import c_ast
 
-#TODO: find better way to locate libclang library
 import clang, clang.cindex
-libpath, foo = os.path.split(clang.cindex.__file__)
-clang.cindex.Config.set_library_path(libpath)
-#put libclang.dylib(.so, .dll) into clang package directory)
 
 from clang.cindex import CursorKind, TypeKind
 
