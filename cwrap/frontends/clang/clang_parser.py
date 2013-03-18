@@ -283,7 +283,12 @@ class ClangParser(object):
             CursorKind.PARM_DECL,
             CursorKind.CONSTRUCTOR,
             CursorKind.CXX_METHOD,
-            CursorKind.FUNCTION_DECL,
+            # Functions handle their children (arguments) themselves and
+            # not using the standard way of parsing. This make sense as
+            # it can quite complex for function pointers (where some
+            # arguments belong to the function declaration, some to the
+            # function prototype).
+            #CursorKind.FUNCTION_DECL,
                            ]:
             self.context.append(result)
 
@@ -461,9 +466,9 @@ class ClangParser(object):
         name = cursor.spelling
         returntype, id_ = self.type_to_c_ast_type(cursor.type.get_result(), level)
         func = c_ast.Function(name, returntype)
-        #for arg in cursor.get_arguments():
-        #    level.show('function argument', arg.kind, arg.spelling)
-        #    func.add_argument(c_ast.Argument(arg.spelling, self.type_to_c_ast_type(arg.type, level+1)[0]))
+        for arg in cursor.get_arguments():
+            level.show('function argument', arg.kind, arg.spelling)
+            func.add_argument(c_ast.Argument(arg.spelling, self.type_to_c_ast_type(arg.type, level+1)[0]))
         return func
 
     visit_CXX_METHOD = visit_FUNCTION_DECL
