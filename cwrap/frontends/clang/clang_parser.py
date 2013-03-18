@@ -257,15 +257,8 @@ class ClangParser(object):
             location = cursor.location
             if location.file is not None:
                 result.location = (location.file.name, location.line)
-            
-            #self.nodes.append(result)
-            
-            #TODO: remove, not necessary???
-            _id = cursor.hash
-            if _id is not None:
-                self.all[_id] = result
-            #else:
-            #    self.all[id(result)] = result
+
+            self.all[cursor.hash] = result
 
         #debug output
         if result is not None:
