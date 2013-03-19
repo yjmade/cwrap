@@ -433,6 +433,10 @@ class CAstTransformer(object):
     def translate_FunctionType(self, func_type):
         args = []
         for arg in func_type.arguments:
+            # This case happens e.g. when an enum is used as function
+            # parameter
+            if not arg.typ.name and hasattr(arg.typ, 'typedef_name'):
+                arg.typ.name = arg.typ.typedef_name
             args.append(self.visit_translate(arg))
         args = cw_ast.arguments(args, None, None, [])
         returns = self.visit_translate(func_type.returns)
