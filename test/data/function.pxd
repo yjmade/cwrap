@@ -12,4 +12,4 @@ cdef extern from "function.h":
 
     int *foo_bar(double t, Bar *barptr)
 
-    double *((*crazy_fn(int *, char *, Baz))[10])
+    double *(*crazy_fn(int *, char *, Baz))[10]
