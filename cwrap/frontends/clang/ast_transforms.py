@@ -395,6 +395,8 @@ class CAstTransformer(object):
 
     def translate_Struct(self, struct):
         name = struct.name
+        if not name and hasattr(struct, 'typedef_name'):
+            name = struct.typedef_name
         return cw_ast.TypeName(cw_ast.Name(name, cw_ast.Param))
 
     def translate_Union(self, union):
