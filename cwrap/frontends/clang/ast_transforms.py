@@ -179,7 +179,7 @@ def apply_c_ast_transformations(c_ast_items):
     for item in items:
         print item.__class__.__name__, item.name
     print '#end toplevel_items '
-    items = sort_toplevel_items(items)
+    #items = sort_toplevel_items(items)
     items = flatten_nested_containers(items)
     #items = filter_ignored(items)
     return items
