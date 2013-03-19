@@ -58,6 +58,8 @@ def _flatten_container(container, items=None): #, context_name=None):
 
     parent_context = container.context
     parent_name = container.name
+    if not parent_name:
+        parent_name = container.typedef_name
 
     mod_context = []
     for i, field in enumerate(container.members):
@@ -114,6 +116,18 @@ def flatten_nested_containers(items):
     for node in items:
         if isinstance(node, (c_ast.Struct, c_ast.Union)):
             res_items.extend(_flatten_container(node))
+        elif isinstance(node, c_ast.Typedef):
+            print 'found Typedef', node.typ
+            r = flatten_nested_containers([node.typ])
+            print 'flattened typedef type:', r
+            # When the flatting didn't introduce any change, just append
+            # the original node, as it was. An example is:
+            # 'typedef struct foo bar'
+            if len(r) == 1 and node.typ == r[0]:
+                res_items.append(node)
+            else:
+                res_items.extend(r[:-1])
+                res_items.append(node)
         else:
             res_items.append(node)
     return res_items

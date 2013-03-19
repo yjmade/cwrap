@@ -412,6 +412,13 @@ class ClangParser(object):
             
             #special handling of typedef enum, struct, union
             if type(c_ast_type) in (c_ast.Enumeration, c_ast.Union, c_ast.Struct):
+                # If the underlying typedef type doesn't have a name, add a
+                # new field called `typedef_name` with the name of the typedef.
+                # This happens e.g. when there's a struct that doesn't
+                # contain a tag name. Having a name is needed for proper
+                # flattening
+                c_ast_type.typedef_name = cursor.spelling
+
                 if not c_ast_type.name: 
                     #unnamed record -> remove declaration from self.all 
                     level.show('remove declaration', c_ast_type, self.all[id_])
