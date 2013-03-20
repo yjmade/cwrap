@@ -79,9 +79,6 @@ class Union(C_ASTNode):
     def init(self, name, align = None, members = None, context = None, bases = None, size = None):
         self.name = name
         #self.align = align
-        # NOTE vmx 2013-03-18: I don't have a clue why you can't define
-        #     `members = []` in the function arguments. But it will break
-        #     things. Variables from one test will bleed into another one
         self.members = members if members is not None else []
         self.context = context
         #self.bases = bases
