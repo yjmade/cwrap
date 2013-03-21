@@ -13,11 +13,7 @@ import re
 
 import c_ast
 
-#TODO: find better way to locate libclang library
 import clang, clang.cindex
-libpath, foo = os.path.split(clang.cindex.__file__)
-clang.cindex.Config.set_library_path(libpath)
-#put libclang.dylib(.so, .dll) into clang package directory)
 
 from clang.cindex import CursorKind, TypeKind
 
@@ -147,18 +143,18 @@ class ClangParser(object):
                     TypeKind.UCHAR: 'unsigned char', #TODO unsigned? char????
                     #TypeKind.CHAR16 = TypeKind(6)
                     #TypeKind.CHAR32 = TypeKind(7)
-                    TypeKind.USHORT: 'unsigned short int',
+                    TypeKind.USHORT: 'unsigned short',
                     TypeKind.UINT: 'unsigned int',
-                    TypeKind.ULONG: 'unsigned long int',
-                    TypeKind.ULONGLONG: 'unsigned long long int',
+                    TypeKind.ULONG: 'unsigned long',
+                    TypeKind.ULONGLONG: 'unsigned long long',
                     #TypeKind.UINT128: TypeKind(12)
                     TypeKind.CHAR_S: 'char', #signed char on platforms where it is default
                     TypeKind.SCHAR: 'signed char',
                     TypeKind.WCHAR: 'char', #TODO: ???
-                    TypeKind.SHORT: 'short int',
+                    TypeKind.SHORT: 'short',
                     TypeKind.INT: 'int',
-                    TypeKind.LONG: 'long int',
-                    TypeKind.LONGLONG: 'long long int',
+                    TypeKind.LONG: 'long',
+                    TypeKind.LONGLONG: 'long long',
                     #TypeKind.INT128: TypeKind(20)
                     TypeKind.FLOAT: 'float',
                     TypeKind.DOUBLE: 'double',
@@ -261,15 +257,8 @@ class ClangParser(object):
             location = cursor.location
             if location.file is not None:
                 result.location = (location.file.name, location.line)
-            
-            #self.nodes.append(result)
-            
-            #TODO: remove, not necessary???
-            _id = cursor.hash
-            if _id is not None:
-                self.all[_id] = result
-            #else:
-            #    self.all[id(result)] = result
+
+            self.all[cursor.hash] = result
 
         #debug output
         if result is not None:
@@ -294,7 +283,12 @@ class ClangParser(object):
             CursorKind.PARM_DECL,
             CursorKind.CONSTRUCTOR,
             CursorKind.CXX_METHOD,
-            CursorKind.FUNCTION_DECL,
+            # Functions handle their children (arguments) themselves and
+            # not using the standard way of parsing. This make sense as
+            # it can quite complex for function pointers (where some
+            # arguments belong to the function declaration, some to the
+            # function prototype).
+            #CursorKind.FUNCTION_DECL,
                            ]:
             self.context.append(result)
 
@@ -418,6 +412,13 @@ class ClangParser(object):
             
             #special handling of typedef enum, struct, union
             if type(c_ast_type) in (c_ast.Enumeration, c_ast.Union, c_ast.Struct):
+                # If the underlying typedef type doesn't have a name, add a
+                # new field called `typedef_name` with the name of the typedef.
+                # This happens e.g. when there's a struct that doesn't
+                # contain a tag name. Having a name is needed for proper
+                # flattening
+                c_ast_type.typedef_name = cursor.spelling
+
                 if not c_ast_type.name: 
                     #unnamed record -> remove declaration from self.all 
                     level.show('remove declaration', c_ast_type, self.all[id_])
@@ -444,6 +445,15 @@ class ClangParser(object):
         return c_ast.Union(name, context = self.context[-1])
 
     def visit_FIELD_DECL(self, cursor, level):
+        # If a field has struct as a child, use the field name as the
+        # structs name (in case it hasn't one). This way anonymous structs
+        # and unions get a proper mangled name for Cython.
+        children = list(cursor.get_children())
+        if len(children) == 1 and children[0].kind in \
+                [CursorKind.STRUCT_DECL, CursorKind.UNION_DECL]:
+            node = self.all[children[0].hash]
+            if not node.name:
+                node.name = cursor.spelling
         parent = self.context[-1]
         name = cursor.spelling
         c_ast_type, id_ = self.type_to_c_ast_type(cursor.type, level)
@@ -463,9 +473,9 @@ class ClangParser(object):
         name = cursor.spelling
         returntype, id_ = self.type_to_c_ast_type(cursor.type.get_result(), level)
         func = c_ast.Function(name, returntype)
-        #for arg in cursor.get_arguments():
-        #    level.show('function argument', arg.kind, arg.spelling)
-        #    func.add_argument(c_ast.Argument(arg.spelling, self.type_to_c_ast_type(arg.type, level+1)[0]))
+        for arg in cursor.get_arguments():
+            level.show('function argument', arg.kind, arg.spelling)
+            func.add_argument(c_ast.Argument(arg.spelling, self.type_to_c_ast_type(arg.type, level+1)[0]))
         return func
 
     visit_CXX_METHOD = visit_FUNCTION_DECL

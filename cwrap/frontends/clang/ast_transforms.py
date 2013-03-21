@@ -58,6 +58,8 @@ def _flatten_container(container, items=None): #, context_name=None):
 
     parent_context = container.context
     parent_name = container.name
+    if not parent_name:
+        parent_name = container.typedef_name
 
     mod_context = []
     for i, field in enumerate(container.members):
@@ -115,11 +117,17 @@ def flatten_nested_containers(items):
         if isinstance(node, (c_ast.Struct, c_ast.Union)):
             res_items.extend(_flatten_container(node))
         elif isinstance(node, c_ast.Typedef):
-            print 'found Typedef'
-            r = flatten_nested_containers([node.typ,])
+            print 'found Typedef', node.typ
+            r = flatten_nested_containers([node.typ])
             print 'flattened typedef type:', r
-            res_items.extend(r)
-#            res_items.append(node)
+            # When the flatting didn't introduce any change, just append
+            # the original node, as it was. An example is:
+            # 'typedef struct foo bar'
+            if len(r) == 1 and node.typ == r[0]:
+                res_items.append(node)
+            else:
+                res_items.extend(r[:-1])
+                res_items.append(node)
         else:
             res_items.append(node)
     return res_items
@@ -171,7 +179,7 @@ def apply_c_ast_transformations(c_ast_items):
     for item in items:
         print item.__class__.__name__, item.name
     print '#end toplevel_items '
-    items = sort_toplevel_items(items)
+    #items = sort_toplevel_items(items)
     items = flatten_nested_containers(items)
     #items = filter_ignored(items)
     return items
@@ -387,6 +395,8 @@ class CAstTransformer(object):
 
     def translate_Struct(self, struct):
         name = struct.name
+        if not name and hasattr(struct, 'typedef_name'):
+            name = struct.typedef_name
         return cw_ast.TypeName(cw_ast.Name(name, cw_ast.Param))
 
     def translate_Union(self, union):
@@ -425,6 +435,10 @@ class CAstTransformer(object):
     def translate_FunctionType(self, func_type):
         args = []
         for arg in func_type.arguments:
+            # This case happens e.g. when an enum is used as function
+            # parameter
+            if not arg.typ.name and hasattr(arg.typ, 'typedef_name'):
+                arg.typ.name = arg.typ.typedef_name
             args.append(self.visit_translate(arg))
         args = cw_ast.arguments(args, None, None, [])
         returns = self.visit_translate(func_type.returns)

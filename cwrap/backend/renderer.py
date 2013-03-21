@@ -1070,12 +1070,13 @@ class ASTRenderer(object):
         
         i = 0
         while i < (len(mods) - 1):
-            if mods[i] != mods[i + 1]:
+            if mods[i][0] == '[' and mods[i][-1] == ']':
+                i += 1
+            elif mods[i] != mods[i + 1]:
                 mods.insert(i + 1, '()')
                 i += 2
             else:
                 i += 1
-
         return mods, node
 
     def apply_reference_types(self, mods, name):

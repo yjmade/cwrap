@@ -76,10 +76,10 @@ class Struct(C_ASTNode):
 
 class Union(C_ASTNode):
     
-    def init(self, name, align = None, members = [], context = None, bases = None, size = None):
+    def init(self, name, align = None, members = None, context = None, bases = None, size = None):
         self.name = name
         #self.align = align
-        self.members = members
+        self.members = members if members is not None else []
         self.context = context
         #self.bases = bases
         #self.size = size
