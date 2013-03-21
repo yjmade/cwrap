@@ -98,7 +98,7 @@ class ClangParser(object):
     #--------------------------------------------------------------------------
     # Parsing entry points
     #--------------------------------------------------------------------------
-    def parse(self, cfile, include_dirs, language):
+    def parse(self, cfile, include_dirs, language, unsaved_files=None):
         """ Parsing entry point. `cfile` is a filename or a file
         object.
 
@@ -112,7 +112,8 @@ class ClangParser(object):
                          #args = ['-I/usr/include/c++/4.2.1',],
                          options = clang.cindex.TranslationUnit.PARSE_INCOMPLETE + \
                              clang.cindex.TranslationUnit.PARSE_DETAILED_PROCESSING_RECORD + \
-                             clang.cindex.TranslationUnit.PARSE_SKIP_FUNCTION_BODIES
+                             clang.cindex.TranslationUnit.PARSE_SKIP_FUNCTION_BODIES,
+                         unsaved_files = unsaved_files
                          )
 
         for d in tu.diagnostics:
@@ -870,10 +871,16 @@ class ClangParser(object):
         return result
 
 
+# `cfile` can be a 2-tuple with a virtual file name and the file contents.
+# The contents can either be a string or a file-like object (with a read()
+# method).
 def parse(cfile, include_dirs, language):
     parser = ClangParser()
-    parser.parse(cfile, include_dirs, language)
-    
+    if isinstance(cfile, list):
+        parser.parse(cfile[0][0], include_dirs, language, unsaved_files=cfile)
+    else:
+        parser.parse(cfile, include_dirs, language)
+
     print 'all:'
     for a in parser.all:
         print hex(a), parser.all[a].name
