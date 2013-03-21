@@ -168,7 +168,10 @@ class ClangParser(object):
 
         kind = t.kind
         if kind in self.simple_types:
-            return c_ast.FundamentalType(self.simple_types[kind]), None
+            const = t.is_const_qualified()
+            volatile = t.is_volatile_qualified()
+            fundtype = c_ast.FundamentalType(self.simple_types[kind])
+            return c_ast.CvQualifiedType(fundtype, const, volatile), None
 
         elif kind is TypeKind.CONSTANTARRAY:
             a, foo = self.type_to_c_ast_type(t.element_type, level+1)

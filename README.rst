@@ -54,8 +54,6 @@ Ideas for improvements
 
 * tests, tests, tests.
 
-* support const
-
 * provide a way to configure which declarations get exposed (especially for nested includes),  e.g., no definitions from system includes, give list of header files, ...
 
 * libclang enables parsing of comments, supporting doxygen syntax. automatically generate documentation comments. does cython support this for cdef extern?

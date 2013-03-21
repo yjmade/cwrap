@@ -1035,7 +1035,10 @@ class ASTRenderer(object):
     # cw_ast.ctype Handlers
     #--------------------------------------------------------------------------
     def render_TypeName(self, type_name):
-        return self.visit_render(type_name.name)
+        res = ''
+        if type_name.const:
+            res = 'const '
+        return res + self.visit_render(type_name.name)
 
     def render_CFunctionType(self, func_type):
         args = self.visit_render(func_type.args)

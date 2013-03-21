@@ -424,7 +424,8 @@ class CAstTransformer(object):
         return cw_ast.Array(self.visit_translate(array.typ), dim)
     
     def translate_CvQualifiedType(self, qual):
-        return self.visit_translate(qual.typ)
+        return cw_ast.TypeName(cw_ast.Name(qual.typ.name, cw_ast.Param),
+                               qual.const, qual.volatile)
 
     def translate_Typedef(self, typedef):
         return cw_ast.TypeName(cw_ast.Name(typedef.name, cw_ast.Param))

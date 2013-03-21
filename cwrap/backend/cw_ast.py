@@ -1442,9 +1442,11 @@ class TypeName(ctype):
     name : an expr node.
 
     """
-    def init(self, name):
+    def init(self, name, const=False, volatile=False):
         assert_expr(name, 'name')
         self.name = name
+        self.const = const
+        self.volatile = volatile
 
 
 class CFunctionType(ctype):
