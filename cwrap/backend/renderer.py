@@ -1063,6 +1063,8 @@ class ASTRenderer(object):
 
         while isinstance(node, (cw_ast.Pointer, cw_ast.Array)):
             if isinstance(node, cw_ast.Pointer):
+                if node.const:
+                    mods.append('const')
                 mods.append('*')
             else:
                 dim = node.dim
@@ -1073,7 +1075,8 @@ class ASTRenderer(object):
         
         i = 0
         while i < (len(mods) - 1):
-            if mods[i][0] == '[' and mods[i][-1] == ']':
+            if (mods[i][0] == '[' and mods[i][-1] == ']') or \
+                    mods[i] == 'const' or mods[i + 1] == 'const':
                 i += 1
             elif mods[i] != mods[i + 1]:
                 mods.insert(i + 1, '()')
@@ -1091,6 +1094,8 @@ class ASTRenderer(object):
                 name = sub_str % (mod, name)
             elif mod == '()':
                 name = '(%s)' % name
+            elif mod == 'const':
+                name = 'const %s' % name
             else:
                 name = sub_str % (name, mod)
         return name

@@ -11,6 +11,7 @@ Requirements
 ------------
 
 * the libclang library (libclang.so, libclang.dylib or libclang.dll), contained in `llvm binary distribution <http://llvm.org/releases/download.html>`_ needs to be somewhere on the binary search path.
+* if your header files contain const definitions, you need a Cython > 0.18 in order to be able to compile it
 
 
 Getting started

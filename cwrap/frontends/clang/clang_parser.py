@@ -178,12 +178,18 @@ class ClangParser(object):
             return c_ast.ArrayType(a, 0, t.element_count-1), None
 
         elif kind is TypeKind.TYPEDEF:
-            return c_ast.FundamentalType(t.get_declaration().spelling), None #t.get_declaration().hash
+            const = t.is_const_qualified()
+            volatile = t.is_volatile_qualified()
+            fundtype = c_ast.FundamentalType(t.get_declaration().spelling)
+            return c_ast.CvQualifiedType(fundtype, const, volatile), None
 
         elif kind is TypeKind.POINTER:
+            const = t.is_const_qualified()
+            volatile = t.is_volatile_qualified()
             ptrtype, foo = self.type_to_c_ast_type(t.get_pointee(), level+1)
             if ptrtype is not None:
-                return c_ast.PointerType(ptrtype, None, None), None
+                ptrtype = c_ast.PointerType(ptrtype, None, None)
+                return c_ast.CvQualifiedType(ptrtype, const, volatile), None
 
         elif kind is TypeKind.LVALUEREFERENCE:
             reftype, foo = self.type_to_c_ast_type(t.get_pointee(), level+1)

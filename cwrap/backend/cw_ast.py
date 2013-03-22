@@ -1470,9 +1470,11 @@ class Pointer(ctype):
     value : a ctype node.
 
     """
-    def init(self, value):
+    def init(self, value, const=False, volatile=False):
         assert_ctype(value, 'value')
         self.value = value
+        self.const = const
+        self.volatile = volatile
 
 
 class Array(ctype):

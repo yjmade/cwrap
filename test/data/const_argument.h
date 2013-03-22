@@ -1,1 +1,6 @@
 int foo(const char* bar);
+typedef struct my_st my_t
+int baz(const my_t **foo);
+int bar(const my_t *const *something);
+int another(my_t *const *one);
+int yet(my_t *const *const another);
