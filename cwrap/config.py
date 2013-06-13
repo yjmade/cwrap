@@ -1,7 +1,7 @@
 import os
 
-from cwrap import frontends
-from cwrap.backend import renderer
+from . import frontends
+from .backend import renderer
 
 
 class ASTContainer(object):

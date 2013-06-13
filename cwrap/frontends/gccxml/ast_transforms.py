@@ -1,6 +1,6 @@
 # CWrap imports
-from cwrap.backend import cw_ast
-from cwrap.config import ASTContainer 
+from ...backend import cw_ast
+from ...config import ASTContainer 
 
 # Local package imports
 import c_ast

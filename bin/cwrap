@@ -1,0 +1,59 @@
+#!/usr/bin/env python
+import getopt
+import sys
+
+from cwrap.config import Config, File
+from cwrap.backend import renderer
+from cwrap.frontends.clang import ast_transforms, clang_parser
+
+
+def usage(exitval=0):
+    print 'usage: run.py -i include-dir -i another-include-dir '\
+        'header-name output-file'
+    print 'example: run.py -i ~/mycode/inc libme/me.h me.pxd'
+    sys.exit(exitval)
+
+def arg_parsing(sysargs):
+    try:
+        opts, args = getopt.getopt(sysargs, 'i:h', ['include', 'help'])
+    except getopt.GetoptError as err:
+        print str(err)
+        usage(2)
+
+    if len(args) != 2:
+        usage(3)
+
+    headername, outfile = args
+    include_dirs = []
+
+    for o, value in opts:
+        if o == "-i":
+            print 'include:', value
+            include_dirs.append(value)
+        elif o in ("-h", "--help"):
+            usage()
+        else:
+            assert False, "unhandled option"
+
+    return headername, outfile, include_dirs
+
+
+if __name__ == '__main__':
+    headername, outfile, include_dirs = arg_parsing(sys.argv[1:])
+
+    inputfile = '#include <' + headername + '>'
+
+    ast_items = clang_parser.parse([('input.h', inputfile)], include_dirs, '')
+    trans_items = ast_transforms.apply_c_ast_transformations(ast_items)
+    container = ast_transforms.CAstContainer(trans_items, headername,
+                                             outfile, None)
+
+    ast_transformer = ast_transforms.CAstTransformer([container])
+    # There's only a single container
+    ast = ast_transformer.transform().next().module
+
+    ast_renderer = renderer.ASTRenderer()
+    code = ast_renderer.render(ast)
+
+    with open(outfile, 'w') as f:
+        f.write(code)

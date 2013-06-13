@@ -6,6 +6,7 @@ setup(name='CWrap',
       description='Automatical generate Cython wrappers from C header files',
       packages=['cwrap', 'cwrap.backend', 'cwrap.frontends', 
                 'cwrap.frontends.gccxml',
-                'cwrap.frontends.clang',
-                ]
+                'cwrap.frontends.clang','cwrap.frontends.clang.clang',
+                ],
+      scripts=["bin/cwrap"]
       )

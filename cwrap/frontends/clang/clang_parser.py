@@ -13,9 +13,9 @@ import re
 
 import c_ast
 
-import clang, clang.cindex
+from . import clang
+from .clang.cindex import CursorKind, TypeKind
 
-from clang.cindex import CursorKind, TypeKind
 
 # A function show(level, *args) would have been simpler but less fun
 # and you'd need a separate parameter for the AST walkers if you want

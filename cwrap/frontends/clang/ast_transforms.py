@@ -1,6 +1,6 @@
 # CWrap imports
-from cwrap.backend import cw_ast
-from cwrap.config import ASTContainer 
+from ...backend import cw_ast
+from ...config import ASTContainer 
 
 # Local package imports
 import c_ast
@@ -24,7 +24,7 @@ def find_toplevel_items(items):
     
     #return items
     #TODO:
-    #print 'get toplevel items'
+    ##print 'get toplevel items'
     #print 'items', items
     for item in items:
         if isinstance(item, c_ast.File):
@@ -49,8 +49,8 @@ def _flatten_container(container, items=None): #, context_name=None):
     arguments are used internally. Returns a list of flattened nodes.
 
     """
-    print '_flatten_container_start', container.__class__.__name__, container.name
-    print [(m.__class__.__name__, m.name) for m in container.members]
+    #print '_flatten_container_start', container.__class__.__name__, container.name
+    #print [(m.__class__.__name__, m.name) for m in container.members]
 
 
     if items is None:
@@ -98,7 +98,7 @@ def _flatten_container(container, items=None): #, context_name=None):
 
     items.append(container) #removed for typedef???
 
-    print '_flatten_container_end: items', [(item.__class__.__name__, item.name) for item in items]
+    #print '_flatten_container_end: items', [(item.__class__.__name__, item.name) for item in items]
 
 
     return items
@@ -117,9 +117,9 @@ def flatten_nested_containers(items):
         if isinstance(node, (c_ast.Struct, c_ast.Union)):
             res_items.extend(_flatten_container(node))
         elif isinstance(node, c_ast.Typedef):
-            print 'found Typedef', node.typ
+            #print 'found Typedef', node.typ
             r = flatten_nested_containers([node.typ])
-            print 'flattened typedef type:', r
+            #print 'flattened typedef type:', r
             # When the flatting didn't introduce any change, just append
             # the original node, as it was. An example is:
             # 'typedef struct foo bar'
@@ -175,10 +175,11 @@ def apply_c_ast_transformations(c_ast_items):
 
     """
     items = find_toplevel_items(c_ast_items)
-    print 'in ast_transforms, toplevel_items:'
+    #print 'in ast_transforms, toplevel_items:'
     for item in items:
-        print item.__class__.__name__, item.name
-    print '#end toplevel_items '
+        pass
+        #print item.__class__.__name__, item.name
+    #print '#end toplevel_items '
     #items = sort_toplevel_items(items)
     items = flatten_nested_containers(items)
     #items = filter_ignored(items)
@@ -221,8 +222,8 @@ class CAstTransformer(object):
                     pass #include everythin
                 self.visit(item)
                 #TODO: debug only
-                print self.pxd_nodes
-                print
+                #print self.pxd_nodes
+                #print
        
             extern = cw_ast.ExternFrom(container.header_name, self.pxd_nodes)
             cdef_decl = cw_ast.CdefDecl([], extern)
@@ -237,7 +238,8 @@ class CAstTransformer(object):
         return res
 
     def generic_visit(self, node):
-        print 'unhandled node in generic_visit: %s' % node
+        pass
+        #print 'unhandled node in generic_visit: %s' % node
        
     #--------------------------------------------------------------------------
     # Toplevel visitors
@@ -251,10 +253,11 @@ class CAstTransformer(object):
             m = self.visit_translate(member)
             if m is not None:
                 if isinstance(m, cw_ast.stmt):
-                    print "append to struct:", name, "member:", type(m)
+                    #print "append to struct:", name, "member:", type(m)
                     body.append(m)
                 else:
-                    print "omitting", m, "from class", name
+                    #print "omitting", m, "from class", name
+                    pass
 
 
         if not body:
@@ -303,7 +306,7 @@ class CAstTransformer(object):
 
     def visit_Typedef(self, td):
         name = td.name #typedef name
-        print "visit typedef:", td.typ.__class__.__name__, repr(td.typ.name), repr(name)        
+        #print "visit typedef:", td.typ.__class__.__name__, repr(td.typ.name), repr(name)        
 
         #extended ctypedef of enums/struct/union:
         #TODO: refactor into common function
@@ -323,7 +326,7 @@ class CAstTransformer(object):
             if not body:
                 body = [cw_ast.Pass,]
             ext_expr = cw_ast.StructDef(name, body)
-            print 'tag_name:', repr(tag_name), 'name:', repr(name)
+            #print 'tag_name:', repr(tag_name), 'name:', repr(name)
             ctypedef = cw_ast.CTypedefDecl(ext_expr)
             self.pxd_nodes.append(ctypedef)
 
@@ -333,7 +336,7 @@ class CAstTransformer(object):
             if not body:
                 body = [cw_ast.Pass,]
             ext_expr = cw_ast.UnionDef(name, body)
-            print 'tag_name:', repr(tag_name), 'name:', repr(name)
+            #print 'tag_name:', repr(tag_name), 'name:', repr(name)
             ctypedef = cw_ast.CTypedefDecl(ext_expr)
             self.pxd_nodes.append(ctypedef)
         
@@ -343,7 +346,7 @@ class CAstTransformer(object):
             ctypedef = cw_ast.CTypedefDecl(expr)
             self.pxd_nodes.append(ctypedef)
             
-        print
+        #print
 
     def visit_Class(self, klasse):
         name = klasse.name
@@ -353,10 +356,11 @@ class CAstTransformer(object):
             #body.append(self.visit_translate(member))
             if m is not None:
                 if isinstance(m, cw_ast.stmt):
-                    print "append class:", name, "member:", type(m)
+                    #print "append class:", name, "member:", type(m)
                     body.append(m)
                 else:
-                    print "omitting", m, "from class", name
+                    #print "omitting", m, "from class", name
+                    pass
 
         if not body:
             body.append(cw_ast.Pass)
@@ -377,7 +381,8 @@ class CAstTransformer(object):
         name = 'translate_' + node.__class__.__name__
         res = getattr(self, name, lambda arg: None)(node)
         if res is None:
-            print 'Unhandled node in translate: ', node
+            #print 'Unhandled node in translate: ', node
+            pass
         return res
 
     def translate_Field(self, field):

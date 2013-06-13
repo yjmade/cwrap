@@ -6,7 +6,7 @@ import os
 import sys
 import re
 
-import c_ast
+from . import c_ast
 
 
 def MAKE_NAME(name):

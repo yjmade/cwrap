@@ -4,8 +4,8 @@ import subprocess
 import tempfile
 
 # Local package imports
-import ast_transforms as transforms
-import clang_parser
+from . import  ast_transforms as transforms
+from . import  clang_parser
 
 
 def gen_c_ast(header_path, include_dirs, language):
