@@ -4,8 +4,9 @@ import subprocess
 import tempfile
 
 # Local package imports
-import ast_transforms as transforms
-import gccxml_parser
+from . import ast_transforms as transforms
+from . import gccxml_parser
+from . import c_ast
 
 
 def gen_c_ast(header_path, include_dirs):

@@ -2,8 +2,8 @@ from collections import defaultdict
 from cStringIO import StringIO
 import os
 
-import cw_ast
-from cwrap import version
+from . import cw_ast
+from .. import version
 
 
 UNDEFINED = '__UNDEFINED__'
