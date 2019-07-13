@@ -120,9 +120,10 @@ class ClangParser(object):
             self.print_diag_info(d)
         
         #UGLY: first element is TRANSLATION_UNIT, parse children
-        self.parse_element(tu.cursor) 
+        ast = self.parse_element(tu.cursor) 
         #for c in tu.cursor.get_children():
         #    self.parse_element(c)
+        return ast
 
 
     def print_diag_info(self, diag):
