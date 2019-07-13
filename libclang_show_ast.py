@@ -18,7 +18,7 @@ class Level(int):
     '''represent currently visited level of a tree'''
     def show(self, *args):
         '''pretty print an indented line'''
-        print '\t'*self + ' '.join(map(str, args))
+        print('\t'*self + ' '.join(map(str, args)))
     def __add__(self, inc):
         '''increase level'''
         return Level(super(Level, self).__add__(inc))
@@ -62,7 +62,7 @@ def show_comment(comment, level):
 def show_ast(cursor, filter_pred=verbose, level=Level()):
     '''pretty print cursor AST'''
     if filter_pred(cursor, level):
-        print
+        print()
         level.show(cursor.kind, 
                    repr(cursor.spelling), 
                    repr(cursor.displayname), 
@@ -80,8 +80,8 @@ def show_ast(cursor, filter_pred=verbose, level=Level()):
             show_comment(comment, level)
             
         if cursor.kind.is_preprocessing():
-            print "PREPROCESSING"
-            print cursor.location
+            print("PREPROCESSING")
+            print(cursor.location)
             T = '|'.join([t.spelling for t in cursor.get_tokens()][:-1]) #one token too much?
             level.show('token: ', T)
 
@@ -111,13 +111,13 @@ def show_ast(cursor, filter_pred=verbose, level=Level()):
             show_ast(c, filter_pred, level+1)
 
 def print_diag_info(diag):
-    print 'location:', diag.location
-    print 'severity:', diag.severity
-    print 'spelling:', diag.spelling
-    print 'ranges:', list(diag.ranges)
-    print 'fixits', list(diag.fixits)
-    print 'category name:', diag.category_name
-    print
+    print('location:', diag.location)
+    print('severity:', diag.severity)
+    print('spelling:', diag.spelling)
+    print('ranges:', list(diag.ranges))
+    print('fixits', list(diag.fixits))
+    print('category name:', diag.category_name)
+    print()
 
 
 if __name__ == '__main__':
@@ -130,16 +130,16 @@ if __name__ == '__main__':
                          #clang.cindex.TranslationUnit.PARSE_INCLUDE_BRIEF_COMMENTS_IN_CODE_COMPLETION + \
                          clang.cindex.TranslationUnit.PARSE_SKIP_FUNCTION_BODIES
                      )
-    print "Translation unit: '%s'"%(tu.spelling,)
-    print "Includes: "
+    print("Translation unit: '%s'"%(tu.spelling,))
+    print("Includes: ")
     for f in tu.get_includes():
-        print '\t'*f.depth, f.include.name
-    print "---"
+        print('\t'*f.depth, f.include.name)
+    print("---")
 
-    print "Diagnostics:"
+    print("Diagnostics:")
     for d in tu.diagnostics:
         print_diag_info(d)
-    print "---"
+    print("---")
 
-    print "AST:"
+    print("AST:")
     show_ast(tu.cursor, no_system_includes)

@@ -7,16 +7,16 @@ from cwrap.frontends.clang import ast_transforms, clang_parser
 
 
 def usage(exitval=0):
-    print 'usage: run.py -i include-dir -i another-include-dir '\
-        'header-name output-file'
-    print 'example: run.py -i ~/mycode/inc libme/me.h me.pxd'
+    print('usage: run.py -i include-dir -i another-include-dir '\
+        'header-name output-file')
+    print('example: run.py -i ~/mycode/inc libme/me.h me.pxd')
     sys.exit(exitval)
 
 def arg_parsing(sysargs):
     try:
         opts, args = getopt.getopt(sysargs, 'i:h', ['include', 'help'])
     except getopt.GetoptError as err:
-        print str(err)
+        print(str(err))
         usage(2)
 
     if len(args) != 2:
@@ -27,7 +27,7 @@ def arg_parsing(sysargs):
 
     for o, value in opts:
         if o == "-i":
-            print 'include:', value
+            print('include:', value)
             include_dirs.append(value)
         elif o in ("-h", "--help"):
             usage()

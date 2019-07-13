@@ -41,11 +41,11 @@ def gen_c_ast(header_path, include_dirs):
 def print_item(item, caption = '', level=0):
     if not item:
         return
-    print '   '*level, item.__class__.__name__, repr(getattr(item, 'name', ''))
+    print('   '*level, item.__class__.__name__, repr(getattr(item, 'name', '')))
     #print '   '*level, item
-    print '   '*level, 'context:', getattr(getattr(item, 'context', None), 'name', 'no context')
-    print '   '*level, 'bases', getattr(item, 'bases', None)
-    print
+    print('   '*level, 'context:', getattr(getattr(item, 'context', None), 'name', 'no context'))
+    print('   '*level, 'bases', getattr(item, 'bases', None))
+    print()
     for i in getattr(item, 'members', []):
         print_item(i, '', level+1)
     #print
@@ -69,11 +69,11 @@ def generate_asts(config):
 
         # generate the c_ast for the header 
         include_dirs = config.metadata.get('include_dirs', [])
-        print 'Parsing %s' % path
+        print('Parsing %s' % path)
         ast_items = gen_c_ast(path, include_dirs) 
 
-        print 'file parsed'
-        print 'AST:'
+        print('file parsed')
+        print('AST:')
         for item in ast_items:
             if isinstance(item, c_ast.Namespace):
                 for i in item.members:

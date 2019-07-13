@@ -18,8 +18,8 @@ def get_frontend(name):
 
     try:
         frontend = importlib.import_module('cwrap.frontends.'+name, '..cwrap')
-    except ImportError, e:
-        print 'Import Error', e
+    except ImportError as e:
+        print('Import Error', e)
         raise ImportError(err_msg + str(e))
     
     return frontend

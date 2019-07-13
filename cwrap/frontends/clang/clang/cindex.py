@@ -427,7 +427,7 @@ class TokenGroup(object):
 
         token_group = TokenGroup(tu, tokens_memory, tokens_count)
 
-        for i in xrange(0, count):
+        for i in range(0, count):
             token = Token()
             token.int_data = tokens_array[i].int_data
             token.ptr_data = tokens_array[i].ptr_data
@@ -488,7 +488,7 @@ class CursorKind(object):
         if value >= len(CursorKind._kinds):
             CursorKind._kinds += [None] * (value - len(CursorKind._kinds) + 1)
         if CursorKind._kinds[value] is not None:
-            raise ValueError,'CursorKind already loaded'
+            raise ValueError('CursorKind already loaded')
         self.value = value
         CursorKind._kinds[value] = self
         CursorKind._name_map = None
@@ -501,7 +501,7 @@ class CursorKind(object):
         """Get the enumeration name of this cursor kind."""
         if self._name_map is None:
             self._name_map = {}
-            for key,value in CursorKind.__dict__.items():
+            for key,value in list(CursorKind.__dict__.items()):
                 if isinstance(value,CursorKind):
                     self._name_map[value] = key
         return self._name_map[self]
@@ -509,13 +509,13 @@ class CursorKind(object):
     @staticmethod
     def from_id(id):
         if id >= len(CursorKind._kinds) or CursorKind._kinds[id] is None:
-            raise ValueError,'Unknown cursor kind'
+            raise ValueError('Unknown cursor kind')
         return CursorKind._kinds[id]
 
     @staticmethod
     def get_all_kinds():
         """Return all CursorKind enumeration instances."""
-        return filter(None, CursorKind._kinds)
+        return [_f for _f in CursorKind._kinds if _f]
 
     def is_declaration(self):
         """Test if this is a declaration kind."""
@@ -1378,7 +1378,7 @@ class TypeKind(object):
         if value >= len(TypeKind._kinds):
             TypeKind._kinds += [None] * (value - len(TypeKind._kinds) + 1)
         if TypeKind._kinds[value] is not None:
-            raise ValueError,'TypeKind already loaded'
+            raise ValueError('TypeKind already loaded')
         self.value = value
         TypeKind._kinds[value] = self
         TypeKind._name_map = None
@@ -1391,7 +1391,7 @@ class TypeKind(object):
         """Get the enumeration name of this cursor kind."""
         if self._name_map is None:
             self._name_map = {}
-            for key,value in TypeKind.__dict__.items():
+            for key,value in list(TypeKind.__dict__.items()):
                 if isinstance(value,TypeKind):
                     self._name_map[value] = key
         return self._name_map[self]
@@ -1404,7 +1404,7 @@ class TypeKind(object):
     @staticmethod
     def from_id(id):
         if id >= len(TypeKind._kinds) or TypeKind._kinds[id] is None:
-            raise ValueError,'Unknown type kind %d' % id
+            raise ValueError('Unknown type kind %d' % id)
         return TypeKind._kinds[id]
 
     def __repr__(self):
@@ -2163,9 +2163,9 @@ class TranslationUnit(ClangObject):
                     # FIXME: It would be great to support an efficient version
                     # of this, one day.
                     value = value.read()
-                    print value
+                    print(value)
                 if not isinstance(value, str):
-                    raise TypeError,'Unexpected unsaved file contents.'
+                    raise TypeError('Unexpected unsaved file contents.')
                 unsaved_files_array[i].name = name
                 unsaved_files_array[i].contents = value
                 unsaved_files_array[i].length = len(value)
@@ -2227,9 +2227,9 @@ class TranslationUnit(ClangObject):
                     # FIXME: It would be great to support an efficient version
                     # of this, one day.
                     value = value.read()
-                    print value
+                    print(value)
                 if not isinstance(value, str):
-                    raise TypeError,'Unexpected unsaved file contents.'
+                    raise TypeError('Unexpected unsaved file contents.')
                 unsaved_files_array[i].name = name
                 unsaved_files_array[i].contents = value
                 unsaved_files_array[i].length = len(value)
@@ -2354,7 +2354,7 @@ class CompileCommand(object):
         Invariant : the first argument is the compiler executable
         """
         length = conf.lib.clang_CompileCommand_getNumArgs(self.cmd)
-        for i in xrange(length):
+        for i in range(length):
             yield conf.lib.clang_CompileCommand_getArg(self.cmd, i)
 
 class CompileCommands(object):
@@ -2436,7 +2436,7 @@ class CommentKind(object):
         if value >= len(CommentKind._kinds):
             CommentKind._kinds += [None] * (value - len(CommentKind._kinds) + 1)
         if CommentKind._kinds[value] is not None:
-            raise ValueError,'CommentKind already loaded'
+            raise ValueError('CommentKind already loaded')
         self.value = value
         CommentKind._kinds[value] = self
         CommentKind._name_map = None
@@ -2449,7 +2449,7 @@ class CommentKind(object):
         """Get the enumeration name of this cursor kind."""
         if self._name_map is None:
             self._name_map = {}
-            for key,value in CommentKind.__dict__.items():
+            for key,value in list(CommentKind.__dict__.items()):
                 if isinstance(value,CommentKind):
                     self._name_map[value] = key
         return self._name_map[self]
@@ -2457,7 +2457,7 @@ class CommentKind(object):
     @staticmethod
     def from_id(id):
         if id >= len(CommentKind._kinds) or CommentKind._kinds[id] is None:
-            raise ValueError,'Unknown type kind %d' % id
+            raise ValueError('Unknown type kind %d' % id)
         return CommentKind._kinds[id]
 
     def __repr__(self):
@@ -2497,7 +2497,7 @@ class Comment(Structure):
 
     def children(self):
         length = conf.lib.clang_Comment_getNumChildren(self)
-        for i in xrange(length):
+        for i in range(length):
             yield conf.lib.clang_Comment_getChild(self, i)
     
     def text(self):
@@ -3177,7 +3177,7 @@ def register_functions(lib, ignore_errors):
     def register(item):
         return register_function(lib, item, ignore_errors)
 
-    map(register, functionList)
+    list(map(register, functionList))
 
 class Config:
     library_path = None

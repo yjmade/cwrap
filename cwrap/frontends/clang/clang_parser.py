@@ -11,7 +11,7 @@ import os
 import sys
 import re
 
-import c_ast
+from . import c_ast
 
 from . import clang
 from .clang.cindex import CursorKind, TypeKind
@@ -24,7 +24,7 @@ class Level(int):
     '''represent currently visited level of a tree'''
     def show(self, *args):
         '''pretty print an indented line'''
-        print '\t'*self + ' '.join(map(str, args))
+        print('\t'*self + ' '.join(map(str, args)))
     def __add__(self, inc):
         '''increase level'''
         return Level(super(Level, self).__add__(inc))
@@ -120,22 +120,23 @@ class ClangParser(object):
             self.print_diag_info(d)
         
         #UGLY: first element is TRANSLATION_UNIT, parse children
-        self.parse_element(tu.cursor) 
+        ast = self.parse_element(tu.cursor) 
         #for c in tu.cursor.get_children():
         #    self.parse_element(c)
+        return ast
 
 
     def print_diag_info(self, diag):
-        print 'category name:', diag.category_name
-        print 'location:', diag.location.file, diag.location.line, ':', diag.location.column
-        print 'severity:', diag.severity
-        print 'spelling:', diag.spelling
+        print('category name:', diag.category_name)
+        print('location:', diag.location.file, diag.location.line, ':', diag.location.column)
+        print('severity:', diag.severity)
+        print('spelling:', diag.spelling)
         #print 'ranges:', list(diag.ranges)
         #print 'fixits', list(diag.fixits)
-        print 'fixits', ['%d:%d-%d:%d %s'%(f.range.start.line, f.range.start.column, 
+        print('fixits', ['%d:%d-%d:%d %s'%(f.range.start.line, f.range.start.column, 
                                            f.range.end.line, f.range.end.column,
-                                           f.value) for f in diag.fixits]
-        print
+                                           f.value) for f in diag.fixits])
+        print()
 
 
     simple_types = {TypeKind.VOID: 'void',
@@ -274,7 +275,7 @@ class ClangParser(object):
         if result is not None:
             level.show('cursor:', cursor.kind, str(cursor.type.kind))
             level.show('name:', repr(result.name))
-            print
+            print()
         
 
         # if this element has subelements, push it onto the context
@@ -810,7 +811,7 @@ class ClangParser(object):
 
         # The alias value will be located in the namespace,
         # or the aliases. Otherwise, it's unfound.
-        for name, a in aliases.items():
+        for name, a in list(aliases.items()):
             value = a.value
             if value in namespace:
                 a.typ = namespace[value]
@@ -867,7 +868,7 @@ class ClangParser(object):
 
         result = []
         namespace = {}
-        for node in self.all.values():
+        for node in list(self.all.values()):
         #for node in self.nodes: #traverse results in parse order
             if not isinstance(node, interesting):
                 continue
@@ -890,15 +891,15 @@ def parse(cfile, include_dirs, language):
     else:
         parser.parse(cfile, include_dirs, language)
 
-    print 'all:'
+    print('all:')
     for a in parser.all:
-        print hex(a), parser.all[a].name
-    print
+        print(hex(a), parser.all[a].name)
+    print()
 
     items = parser.get_result()
 
-    print 'in clang_parser.py/parse(), items:'
+    print('in clang_parser.py/parse(), items:')
     for i in items:
-        print "%20s: %s"%(i.__class__.__name__, i.name)
+        print("%20s: %s"%(i.__class__.__name__, i.name))
 
     return items

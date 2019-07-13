@@ -1,7 +1,7 @@
 from cwrap.config import Config, File
 import sys
 
-print sys.argv
+print(sys.argv)
 if len(sys.argv) > 1:
     files = [File(f) for f in sys.argv[1:]]
 else:
@@ -11,8 +11,8 @@ if __name__ == '__main__':
     #config = Config('gccxml', files=files, save_dir = 'tests/result_gccxml')
     #config.generate()
     
-    print '------------------------'
-    print
+    print('------------------------')
+    print()
 
     config_clang = Config('clang', files=files, 
                           save_dir = 'tests/result_clang',

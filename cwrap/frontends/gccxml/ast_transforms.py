@@ -3,7 +3,7 @@ from ...backend import cw_ast
 from ...config import ASTContainer 
 
 # Local package imports
-import c_ast
+from . import c_ast
 
 
 def find_toplevel_items(items):
@@ -119,14 +119,14 @@ def filter_ignored(items):
     a new list of items.
 
     """
-    res_items = filter(_ignore_and_location_filter, items)
+    res_items = list(filter(_ignore_and_location_filter, items))
     for item in res_items:
         if isinstance(item, (c_ast.Struct, c_ast.Union)):
-            item.members = filter(_ignore_filter, item.members)
+            item.members = list(filter(_ignore_filter, item.members))
         elif isinstance(item, c_ast.Enumeration):
-            item.values = filter(_ignore_filter, item.values)
+            item.values = list(filter(_ignore_filter, item.values))
         elif isinstance(item, (c_ast.Function, c_ast.FunctionType)):
-            item.arguments = filter(_ignore_filter, item.arguments)
+            item.arguments = list(filter(_ignore_filter, item.arguments))
     return res_items
 
 
@@ -197,7 +197,7 @@ class CAstTransformer(object):
         return res
 
     def generic_visit(self, node):
-        print 'unhandled node in generic_visit: %s' % node
+        print('unhandled node in generic_visit: %s' % node)
        
     #--------------------------------------------------------------------------
     # Toplevel visitors
@@ -265,7 +265,7 @@ class CAstTransformer(object):
         name = 'translate_' + node.__class__.__name__
         res = getattr(self, name, lambda arg: None)(node)
         if res is None:
-            print 'Unhandled node in translate: ', node
+            print('Unhandled node in translate: ', node)
         return res
 
     def translate_Field(self, field):

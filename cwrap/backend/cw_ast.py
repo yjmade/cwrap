@@ -136,12 +136,12 @@ def assert_int(node, var_name):
 
 def assert_num(node, var_name):
     msg = '%s must be a number.' % var_name
-    assert isinstance(node, (int, float, long)), msg
+    assert isinstance(node, (int, float)), msg
 
 
 def assert_basestring(node, var_name):
     msg = '%s must be a string.' % var_name
-    assert isinstance(node, basestring), msg
+    assert isinstance(node, str), msg
 
 
 def assert_cdefmodifiers(items, var_name):
