@@ -50,7 +50,7 @@ if __name__ == '__main__':
 
     ast_transformer = ast_transforms.CAstTransformer([container])
     # There's only a single container
-    ast = ast_transformer.transform().next().module
+    ast = next(ast_transformer.transform()).module
 
     ast_renderer = renderer.ASTRenderer()
     code = ast_renderer.render(ast)
