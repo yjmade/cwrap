@@ -3,7 +3,7 @@ from ...backend import cw_ast
 from ...config import ASTContainer 
 
 # Local package imports
-import c_ast
+from . import c_ast
 
 
 def find_toplevel_items(items):
@@ -90,7 +90,7 @@ def _flatten_container(container, items=None): #, context_name=None):
     # any fields that reference them with the typedefs.
     for idx, field, typedef in reversed(mod_context):
         r = container.members.pop(idx) #TODO????
-        print 'removed member', r.name
+        print('removed member', r.name)
         for member in container.members:
             if isinstance(member, c_ast.Field):
                 if member.typ is field:
@@ -151,14 +151,14 @@ def filter_ignored(items):
     a new list of items.
 
     """
-    res_items = filter(_ignore_and_location_filter, items)
+    res_items = list(filter(_ignore_and_location_filter, items))
     for item in res_items:
         if isinstance(item, (c_ast.Struct, c_ast.Union)):
-            item.members = filter(_ignore_filter, item.members)
+            item.members = list(filter(_ignore_filter, item.members))
         elif isinstance(item, c_ast.Enumeration):
-            item.values = filter(_ignore_filter, item.values)
+            item.values = list(filter(_ignore_filter, item.values))
         elif isinstance(item, (c_ast.Function, c_ast.FunctionType)):
-            item.arguments = filter(_ignore_filter, item.arguments)
+            item.arguments = list(filter(_ignore_filter, item.arguments))
     return res_items
 
 
@@ -311,7 +311,7 @@ class CAstTransformer(object):
         #extended ctypedef of enums/struct/union:
         #TODO: refactor into common function
         #ctypedef of unnamed enumeration, struct, union: include members
-        if isinstance(td.typ, (c_ast.Enumeration, )) and not td.typ.name: 
+        if isinstance(td.typ, c_ast.Enumeration) and not td.typ.name: 
             tag_name = td.typ.name
             body = [self.visit_translate(value) for value in td.typ.values]
             if not body:

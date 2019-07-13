@@ -33,7 +33,7 @@ class Config(object):
         for ast_container in cw_asts:
             filename = ast_container.filename
             save_path = os.path.join(self.save_dir, filename)
-            print 'Rendering %s' % save_path 
+            print('Rendering %s' % save_path) 
             mod_node = ast_container.module
             code = ast_renderer.render(mod_node)
             try:

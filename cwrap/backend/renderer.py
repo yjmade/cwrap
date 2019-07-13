@@ -1,5 +1,5 @@
 from collections import defaultdict
-from cStringIO import StringIO
+from io import StringIO
 import os
 
 from . import cw_ast
@@ -75,11 +75,11 @@ class ASTRenderer(object):
         return renderer(node)
 
     def unhandled_visitor(self, node):
-        print 'No visitor for node: `%s`' % node
+        print('No visitor for node: `%s`' % node)
 
     def unhandled_renderer(self, node):
         import pdb; pdb.set_trace()
-        print 'No renderer for node: `%s`' % node
+        print('No renderer for node: `%s`' % node)
         return UNDEFINED
 
     #--------------------------------------------------------------------------

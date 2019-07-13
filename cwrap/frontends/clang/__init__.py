@@ -40,14 +40,14 @@ def generate_asts(config):
 
         language = config.metadata.get('language', '')
         
-        print 'Parsing %s' % path
+        print('Parsing %s' % path)
         ast_items = gen_c_ast(path, include_dirs, language) 
 
-        print 'in __init__/generate_asts()'
-        print 'file parsed'
-        print 'AST:', ast_items
+        print('in __init__/generate_asts()')
+        print('file parsed')
+        print('AST:', ast_items)
         for item in ast_items:
-            print item.__class__.__name__, item.name
+            print(item.__class__.__name__, item.name)
         
         # Apply the transformations to the ast items 
         trans_items = transforms.apply_c_ast_transformations(ast_items)

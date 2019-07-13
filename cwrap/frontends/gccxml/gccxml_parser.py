@@ -77,7 +77,7 @@ class GCCXMLParser(object):
         """
         for event, node in cElementTree.iterparse(xmlfile, events=('start', 'end')):
             if event == 'start':
-                self.start_element(node.tag, dict(node.items()))
+                self.start_element(node.tag, dict(list(node.items())))
             else:
                 if node.text:
                     self.visit_Characters(node.text)
@@ -130,7 +130,7 @@ class GCCXMLParser(object):
         found.
 
         """
-        print 'Unhandled element `%s`.' % name
+        print('Unhandled element `%s`.' % name)
 
     #--------------------------------------------------------------------------
     # Ignored elements and do-nothing handlers
@@ -475,7 +475,7 @@ class GCCXMLParser(object):
 
         # The alias value will be located in the namespace,
         # or the aliases. Otherwise, it's unfound.
-        for name, a in aliases.items():
+        for name, a in list(aliases.items()):
             value = a.value
             if value in namespace:
                 a.typ = namespace[value]
@@ -504,7 +504,7 @@ class GCCXMLParser(object):
         # Walk through all the items, hooking up the appropriate 
         # links by replacing the id tags with the actual objects
         remove = []
-        for name, node in self.all.items():
+        for name, node in list(self.all.items()):
             location = getattr(node, 'location', None)
             if location is not None:
                 fil, line = location.split(':')
@@ -530,7 +530,7 @@ class GCCXMLParser(object):
 
         result = []
         namespace = {}
-        for node in self.all.values():
+        for node in list(self.all.values()):
             if not isinstance(node, interesting):
                 continue
             name = getattr(node, 'name', None)
