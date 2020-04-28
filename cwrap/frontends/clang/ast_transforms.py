@@ -1,6 +1,6 @@
 # CWrap imports
 from ...backend import cw_ast
-from ...config import ASTContainer 
+from ...config import ASTContainer
 
 # Local package imports
 from . import c_ast
@@ -18,10 +18,10 @@ def find_toplevel_items(items):
     #             break
     # else:
     #     raise RuntimeError('Toplevel namespace not found.')
-    
+
     # res_items = []
     # return toplevel_ns.members[:]
-    
+
     #return items
     #TODO:
     ##print 'get toplevel items'
@@ -32,7 +32,7 @@ def find_toplevel_items(items):
             #print item.members
             return item.members
 
-    
+
 def sort_toplevel_items(items):
     """ Sorts the items first by their filename, then by lineno. Returns
     a new list of items
@@ -44,7 +44,7 @@ def sort_toplevel_items(items):
 
 def _flatten_container(container, items=None): #, context_name=None):
     """ Given a struct or union, replaces nested structs or unions
-    with toplevel struct/unions and a typdef'd member. This will 
+    with toplevel struct/unions and a typdef'd member. This will
     recursively expand everything nested. The `items` and `context_name`
     arguments are used internally. Returns a list of flattened nodes.
 
@@ -67,26 +67,26 @@ def _flatten_container(container, items=None): #, context_name=None):
             # Create the necessary mangled names
             mangled_name = '__%s_%s' % (parent_name, field.name)
             mangled_typename = mangled_name + '_t'
-            
+
             # Change the name of the nested item to the mangled
             # item the context to the parent context
             field.name = mangled_name
             field.context = parent_context
-            
+
             # Expand any nested definitions for this container.
             _flatten_container(field, items) #, parent_name)
-            
+
             # Create a typedef for the mangled name with the parent_context
             typedef = c_ast.Typedef(mangled_typename, field, parent_context)
-                
+
             # Add the typedef to the list of items
             items.append(typedef)
 
-            # Add the necessary information to the mod_context so 
+            # Add the necessary information to the mod_context so
             # we can modify the list of members at the end.
             mod_context.append((i, field, typedef))
 
-    # Use the mod_context to remove the nest definitions and replace 
+    # Use the mod_context to remove the nest definitions and replace
     # any fields that reference them with the typedefs.
     for idx, field, typedef in reversed(mod_context):
         r = container.members.pop(idx) #TODO????
@@ -105,12 +105,12 @@ def _flatten_container(container, items=None): #, context_name=None):
 
 
 def flatten_nested_containers(items):
-    """ Searches for Struct/Union nodes with nested Struct/Union 
+    """ Searches for Struct/Union nodes with nested Struct/Union
     definitions, when it finds them, it creates a similar definition
-    in the namespace with an approprately mangled name, and reorganizes 
-    the nodes appropriately. This is required since Cython doesn't support 
-    nested definitions. Returns a new list of items. 
-    
+    in the namespace with an approprately mangled name, and reorganizes
+    the nodes appropriately. This is required since Cython doesn't support
+    nested definitions. Returns a new list of items.
+
     """
     res_items = []
     for node in items:
@@ -131,8 +131,8 @@ def flatten_nested_containers(items):
         else:
             res_items.append(node)
     return res_items
-                    
-           
+
+
 def _ignore_filter(node):
     return not isinstance(node, c_ast.Ignored)
 
@@ -224,11 +224,11 @@ class CAstTransformer(object):
                 #TODO: debug only
                 #print self.pxd_nodes
                 #print
-       
+
             extern = cw_ast.ExternFrom(container.header_name, self.pxd_nodes)
             cdef_decl = cw_ast.CdefDecl([], extern)
             mod = cw_ast.Module([cdef_decl])
-            
+
             yield ASTContainer(mod, container.extern_name + '.pxd')
 
     def visit(self, node):
@@ -240,7 +240,7 @@ class CAstTransformer(object):
     def generic_visit(self, node):
         pass
         #print 'unhandled node in generic_visit: %s' % node
-       
+
     #--------------------------------------------------------------------------
     # Toplevel visitors
     #--------------------------------------------------------------------------
@@ -306,12 +306,12 @@ class CAstTransformer(object):
 
     def visit_Typedef(self, td):
         name = td.name #typedef name
-        #print "visit typedef:", td.typ.__class__.__name__, repr(td.typ.name), repr(name)        
+        #print "visit typedef:", td.typ.__class__.__name__, repr(td.typ.name), repr(name)
 
         #extended ctypedef of enums/struct/union:
         #TODO: refactor into common function
         #ctypedef of unnamed enumeration, struct, union: include members
-        if isinstance(td.typ, c_ast.Enumeration) and not td.typ.name: 
+        if isinstance(td.typ, c_ast.Enumeration) and not td.typ.name:
             tag_name = td.typ.name
             body = [self.visit_translate(value) for value in td.typ.values]
             if not body:
@@ -339,13 +339,13 @@ class CAstTransformer(object):
             #print 'tag_name:', repr(tag_name), 'name:', repr(name)
             ctypedef = cw_ast.CTypedefDecl(ext_expr)
             self.pxd_nodes.append(ctypedef)
-        
+
         else:
             type_name = self.visit_translate(td.typ)
             expr = cw_ast.Expr(cw_ast.CName(type_name, name))
             ctypedef = cw_ast.CTypedefDecl(expr)
             self.pxd_nodes.append(ctypedef)
-            
+
         #print
 
     def visit_Class(self, klasse):
@@ -415,7 +415,7 @@ class CAstTransformer(object):
             name = ''
         cname = cw_ast.CName(type_name, name)
         return cname
-        
+
     def translate_PointerType(self, pointer):
         return cw_ast.Pointer(self.visit_translate(pointer.typ))
 
@@ -427,7 +427,7 @@ class CAstTransformer(object):
         max = int(array.max)
         dim = max - min + 1
         return cw_ast.Array(self.visit_translate(array.typ), dim)
-    
+
     def translate_CvQualifiedType(self, qual):
         # The `const` and `volatile` attributes are defined for `TypeName`
         # and `Pointer`
@@ -468,5 +468,5 @@ class CAstTransformer(object):
         returns = self.visit_translate(func.returns)
         func_def = cw_ast.CFunctionDecl(name, args, returns, None)
         return func_def
-        
-    
+
+

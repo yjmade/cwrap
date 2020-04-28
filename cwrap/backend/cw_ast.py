@@ -1,5 +1,5 @@
-# This largely mimics the AST of Python 2.7 with additional nodes 
-# to support Cython specific constructs. 
+# This largely mimics the AST of Python 2.7 with additional nodes
+# to support Cython specific constructs.
 
 
 #------------------------------------------------------------------------------
@@ -106,7 +106,7 @@ def assert_slice(node, var_name):
     msg = '%s must be a slice node.' % var_name
     assert isinstance(node, slice), msg
 
-   
+
 def assert_slices(items, var_name):
     msg = '%s must be slice nodes.' % var_name
     for item in items:
@@ -159,7 +159,7 @@ def assert_ctype(node, var_name):
 # Base ast node
 #------------------------------------------------------------------------------
 class CWAN(object):
-    """ The base class of all CWrap Ast Nodes. 
+    """ The base class of all CWrap Ast Nodes.
 
     """
     def __init__(self, *args, **kwargs):
@@ -201,6 +201,7 @@ class FunctionDef(stmt):
 
     """
     def init(self, name, args, body, decorator_list):
+        name = name.decode()
         assert_str(name, 'name')
         assert_stmts(body, 'body')
         assert_arguments(args, 'args')
@@ -221,6 +222,7 @@ class ClassDef(stmt):
 
     """
     def init(self, name, bases, body, decorator_list):
+        name = name.decode()
         assert_str(name, 'name')
         assert_exprs(bases, 'bases')
         assert_stmts(body, 'body')
@@ -462,6 +464,7 @@ class ImportFrom(stmt):
     """
     def init(self, module, names, level):
         if module:
+            module=module.decode()
             assert_str(module, 'module')
         assert_aliases(names, 'names')
         if level:
@@ -497,15 +500,16 @@ class Global(stmt):
 
     """
     def init(self, names):
+        names=[name.decode() for name in names]
         assert_strs(names, 'names')
         self.names = names
 
 
 class Expr(stmt):
     """ An expression node. Inherits stmt.
-    
-    value : an expr node. 
-    
+
+    value : an expr node.
+
     """
     def init(self, value):
         assert_expr(value, 'value')
@@ -634,7 +638,7 @@ class Dict(expr):
 
 class Set(expr):
     """ A set literal. Inherits expr.
-    
+
     elts : A list of expr nodes.
 
     """
@@ -802,6 +806,7 @@ class Attribute(expr):
     """
     def init(self, value, attr, ctx):
         assert_expr(value, 'value')
+        attr=attr.decode()
         assert_str(attr, 'attr')
         assert_expr_context(ctx, 'ctx')
         self.value = value
@@ -834,6 +839,8 @@ class Name(expr):
 
     """
     def init(self, id, ctx):
+        if isinstance(id, bytes):
+            id=id.decode()
         assert_str(id, 'id')
         assert_expr_context(ctx, 'ctx')
         self.id = id
@@ -1113,7 +1120,7 @@ NotIn = NotIn()
 
 
 class comprehension(CWAN):
-    """ A comprehension node. 
+    """ A comprehension node.
 
     target : an expr node.
     iter : an expr node.
@@ -1176,7 +1183,7 @@ class arguments(CWAN):
 
 
 class keyword(CWAN):
-    """ A keyword node. 
+    """ A keyword node.
 
     arg : a string.
     value : an expr node.
@@ -1266,6 +1273,8 @@ class CFunctionDecl(stmt):
 
     """
     def init(self, name, args, returns, excepts):
+        if isinstance(name, bytes):
+            name=name.decode()
         assert_str(name, 'name')
         assert_arguments(args, 'args')
         if returns:
@@ -1355,6 +1364,8 @@ class StructDef(stmt):
 
     """
     def init(self, name, body):
+        if isinstance(name, bytes):
+            name = name.decode()
         assert_str(name, 'name')
         assert_stmts(body, 'body')
         self.name = name
@@ -1369,6 +1380,8 @@ class UnionDef(stmt):
 
     """
     def init(self, name, body):
+        if isinstance(name, bytes):
+            name = name.decode()
         assert_str(name, 'name')
         assert_stmts(body, 'body')
         self.name = name
@@ -1384,6 +1397,7 @@ class EnumDef(stmt):
     """
     def init(self, name, body):
         if name:
+            name=name.decode()
             assert_str(name, 'name')
         assert_stmts(body, 'body')
         self.name = name
@@ -1398,6 +1412,7 @@ class Property(stmt):
 
     """
     def init(self, name, body):
+        name=name.decode()
         assert_str(name, 'name')
         assert_stmts(body, 'body')
         self.name = name
@@ -1412,6 +1427,8 @@ class ExternFrom(stmt):
 
     """
     def init(self, name, body):
+        if isinstance(name, bytes):
+            name = name.decode()
         assert_str(name, 'name')
         assert_stmts(body, 'body')
         self.name = name
@@ -1426,6 +1443,8 @@ class CName(expr):
 
     """
     def init(self, ctype, name):
+        if isinstance(name,bytes):
+            name=name.decode()
         assert_ctype(ctype, 'ctype')
         assert_str(name, 'name')
         self.ctype = ctype
@@ -1451,10 +1470,10 @@ class TypeName(ctype):
 
 class CFunctionType(ctype):
     """ A C function type. Inherits ctype.
-    
+
     args : an arguments node.
     returns : a ctype node. Can be None.
-    
+
     """
     def init(self, args, returns):
         assert_arguments(args, 'args')
@@ -1499,6 +1518,7 @@ class CppClassDef(stmt):
 
     """
     def init(self, name, body):
+        name = name.decode()
         assert_str(name, 'name')
         assert_stmts(body, 'body')
         self.name = name

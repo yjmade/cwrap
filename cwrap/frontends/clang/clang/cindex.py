@@ -1328,7 +1328,7 @@ class Cursor(Structure):
     def get_parsed_comment(self):
         #TODO: caching
         return conf.lib.clang_Cursor_getParsedComment(self)
-        
+
 
     @staticmethod
     def from_result(res, fn, args):
@@ -1454,6 +1454,8 @@ TypeKind.FUNCTIONNOPROTO = TypeKind(110)
 TypeKind.FUNCTIONPROTO = TypeKind(111)
 TypeKind.CONSTANTARRAY = TypeKind(112)
 TypeKind.VECTOR = TypeKind(113)
+TypeKind.INCOMPLETEARRAY = TypeKind(114)
+TypeKind.ELABORATED = TypeKind(119)
 
 class Type(Structure):
     """
@@ -1975,7 +1977,7 @@ class TranslationUnit(ClangObject):
 
         args_array = None
         if len(args) > 0:
-            args_array = (c_char_p * len(args))(* args)
+            args_array = (c_char_p * len(args))(* [a.encode() for a in args])
 
         unsaved_array = None
         if len(unsaved_files) > 0:
@@ -1984,11 +1986,11 @@ class TranslationUnit(ClangObject):
                 if hasattr(contents, "read"):
                     contents = contents.read()
 
-                unsaved_array[i].name = name
-                unsaved_array[i].contents = contents
+                unsaved_array[i].name = name.encode()
+                unsaved_array[i].contents = contents.encode()
                 unsaved_array[i].length = len(contents)
 
-        ptr = conf.lib.clang_parseTranslationUnit(index, filename, args_array,
+        ptr = conf.lib.clang_parseTranslationUnit(index, filename.encode(), args_array,
                                     len(args), unsaved_array,
                                     len(unsaved_files), options)
 
@@ -2274,7 +2276,7 @@ class File(ClangObject):
         return conf.lib.clang_getFileTime(self)
 
     def __str__(self):
-        return self.name
+        return self.name.decode()
 
     def __repr__(self):
         return "<File: %s>" % (self.name)
@@ -2420,7 +2422,7 @@ class CompilationDatabase(ClangObject):
         """
         return conf.lib.clang_CompilationDatabase_getCompileCommands(self,
                                                                      filename)
-class CommentKind(object): 
+class CommentKind(object):
     #similar to CursorKind
     """
     Describes the type of the comment AST node (CXComment). A comment
@@ -2490,7 +2492,7 @@ class Comment(Structure):
     #def from_param(self):
     #    print "Comment.from_param", self, hex(self.ptr)
     #    return self.ptr
-    
+
     @property
     def kind(self):
         return CommentKind.from_id(conf.lib.clang_Comment_getKind(self))
@@ -2499,13 +2501,13 @@ class Comment(Structure):
         length = conf.lib.clang_Comment_getNumChildren(self)
         for i in range(length):
             yield conf.lib.clang_Comment_getChild(self, i)
-    
+
     def text(self):
         if self.kind == CommentKind.TEXT:
             return conf.lib.clang_TextComment_getText(self)
         else:
             pass
-    
+
 
 class Token(Structure):
     """Represents a single token from the preprocessor.
@@ -3127,7 +3129,7 @@ functionList = [
   ("clang_Comment_getChild",
    [Comment, c_uint],
    Comment),
-  
+
   ("clang_Cursor_getParsedComment",
    [Cursor],
    Comment),
@@ -3136,7 +3138,7 @@ functionList = [
    [Comment],
    _CXString,
    _CXString.from_result)
-     
+
 ]
 
 class LibclangError(Exception):
